@@ -1412,12 +1412,22 @@ const USERS = [
 let currentUser = null;
 
 // ─── LOGIN ───
-function doLogin() {
-  const email = document.getElementById('login-email').value.trim();
+async function doLogin() {
+  const email = document.getElementById('login-email').value.trim().toLowerCase();
   const pass  = document.getElementById('login-pass').value;
   const errEl = document.getElementById('login-error');
+  const btn   = document.querySelector('#pg-login .btn-orange');
+
+  // Mostrar estado de carga
+  if (btn) { btn.textContent = 'Verificando...'; btn.disabled = true; }
+
+  // Cargar usuarios extra ANTES de validar credenciales
+  await loadExtraUsers();
 
   const user = getAllUsers().find(u => u.email === email && u.pass === pass);
+
+  if (btn) { btn.textContent = '⊙ INGRESAR AL PORTAL'; btn.disabled = false; }
+
   if (!user) {
     errEl.style.display = 'block';
     document.getElementById('login-pass').style.borderColor = '#ef4444';
@@ -1436,8 +1446,7 @@ function doLogin() {
   document.getElementById('pg-login').style.display = 'none';
   document.getElementById('pg-app').style.display = 'flex';
   renderDashboard();
-  // Cargar datos desde Supabase/localStorage (incluyendo usuarios extra)
-  loadExtraUsers().then(() => renderUsuarios());
+  renderUsuarios();
   dbLoadAll();
   // Pre-llenar campos de configuración
   const sbKeyEl = document.getElementById('sb-key-input');
