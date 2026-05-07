@@ -531,7 +531,7 @@
     <div id="sec-dashboard">
       <div class="topbar">
         <div>
-          <h2>Buenos días, Pablo 👋</h2>
+          <h2 id="dash-greeting">Buenos días 👋</h2>
           <p>Automatización y gestión estratégica HK Human Capital · Información compartida del hub HK Chile</p>
         </div>
         <button class="btn btn-primary" onclick="openModal('modal-nuevo-proceso')">+ Nuevo Proceso</button>
@@ -883,6 +883,7 @@
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button class="btn btn-ghost" onclick="exportLocalData()">📤 Exportar datos (fotos + configuración)</button>
           <label class="btn btn-ghost" style="cursor:pointer">📥 Importar datos<input type="file" accept=".json" onchange="importLocalData(event)" style="display:none"/></label>
+          <button class="btn btn-primary" onclick="pushLocalToSupabase()" style="background:#f97316">☁️ Subir datos locales a Supabase</button>
         </div>
       </div>
     </div>
@@ -1478,9 +1479,10 @@ async function dbLoad(storeKey) {
   const sb = getSB();
   if (sb) {
     try {
-      const { data } = await sb.from('hk_store').select('value').eq('key', storeKey).maybeSingle();
+      const { data, error } = await sb.from('hk_store').select('value').eq('key', storeKey).maybeSingle();
+      if (error) console.warn('dbLoad Supabase error ['+storeKey+']:', error.code, error.message);
       if (data?.value) return data.value;
-    } catch(e) { console.warn('dbLoad error', e); }
+    } catch(e) { console.warn('dbLoad error ['+storeKey+']:', e); }
   }
   const local = localStorage.getItem('hk_local_'+storeKey);
   return local ? JSON.parse(local) : null;
@@ -1492,7 +1494,7 @@ function stripPhotos(data) {
     procesos: (cliente.procesos||[]).map(proceso => ({
       ...proceso,
       candidatos: (proceso.candidatos||[]).map(cand => {
-        if (cand.photo) localStorage.setItem('hk_photo_'+cand.id, cand.photo);
+        if (cand.photo) dbPhotoSet('hk_photo_'+cand.id, cand.photo);
         const { photo, ...rest } = cand; return rest;
       })
     }))
@@ -1511,17 +1513,58 @@ function reattachPhotos(data) {
     }))
   }));
 }
+// ── PHOTO SYNC (localStorage + Supabase) ─────────────────────────────────────
+let _photoFlushTimer = null;
+async function dbPhotosLoad() {
+  const sb = getSB(); if (!sb) return;
+  try {
+    const { data } = await sb.from('hk_store').select('value').eq('key', 'photos').maybeSingle();
+    if (data?.value && typeof data.value === 'object') {
+      Object.entries(data.value).forEach(([k, v]) => { if (v) localStorage.setItem(k, v); });
+    }
+  } catch(e) { console.warn('dbPhotosLoad error', e); }
+}
+async function dbPhotosFlush() {
+  const sb = getSB(); if (!sb) return;
+  const photos = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && (k.startsWith('hk_photo_') || k.startsWith('hk_cli_photo_') || k.startsWith('hk_pres_photo_'))) {
+      photos[k] = localStorage.getItem(k);
+    }
+  }
+  try {
+    await sb.from('hk_store').upsert({ key: 'photos', value: photos, updated_at: new Date().toISOString() });
+  } catch(e) { console.warn('dbPhotosFlush error', e); }
+}
+function dbPhotoSet(key, val) {
+  localStorage.setItem(key, val);
+  clearTimeout(_photoFlushTimer);
+  _photoFlushTimer = setTimeout(dbPhotosFlush, 1500);
+}
+function dbPhotoRemove(key) {
+  localStorage.removeItem(key);
+  clearTimeout(_photoFlushTimer);
+  _photoFlushTimer = setTimeout(dbPhotosFlush, 1500);
+}
+// ─────────────────────────────────────────────────────────────────────────────
 async function dbLoadAll() {
   showToast('Cargando datos...', 1500);
-  const [pres, info, ref] = await Promise.all([
-    dbLoad('presData'), dbLoad('informeData'), dbLoad('refData')
+  await dbPhotosLoad();
+  const [pres, info, ref, procOvr, procCust] = await Promise.all([
+    dbLoad('presData'), dbLoad('informeData'), dbLoad('refData'),
+    dbLoad('procOverrides'), dbLoad('procCustom')
   ]);
   if (pres) { presData = reattachPhotos(pres); renderPres(); }
   if (info) { informeData = info; renderInforme(); }
   if (ref)  { refData = ref;  renderRef(); }
-  if (pres||info||ref) showToast('Datos cargados ✓');
-  // Actualizar dashboard con datos reales ya cargados
+  if (procOvr)  { localStorage.setItem('hk_proc_overrides', JSON.stringify(procOvr)); }
+  if (procCust) { localStorage.setItem('hk_proc_custom',    JSON.stringify(procCust)); }
+  if (pres||info||ref||procOvr||procCust) showToast('Datos cargados ✓');
+  // Actualizar todas las vistas con datos reales ya cargados
   renderDashboard();
+  try { renderProcesos(); } catch(_) {}
+  try { renderClientesList(); } catch(_) {}
 }
 async function compressPhoto(dataURL) {
   return new Promise(resolve => {
@@ -1578,6 +1621,12 @@ async function doLogin() {
   }
 
   currentUser = user;
+  // Actualizar saludo con nombre del usuario
+  const _firstName = user.nombre.split(' ')[0];
+  const _hour = new Date().getHours();
+  const _greet = _hour < 12 ? 'Buenos días' : _hour < 20 ? 'Buenas tardes' : 'Buenas noches';
+  const greetEl = document.getElementById('dash-greeting');
+  if (greetEl) greetEl.textContent = `${_greet}, ${_firstName} 👋`;
   // Actualizar sidebar con datos del usuario
   document.querySelector('.user-avatar').textContent = user.initials;
   document.querySelector('.user-info strong').textContent = user.nombre;
@@ -1788,7 +1837,7 @@ function informeSaveCliente() {
   informeData.push({id, cliente, industria:industria||'', procesos:[]});
   // Inherit photo if exists
   const photo = getCliPhotoByName(cliente);
-  if (photo) localStorage.setItem('hk_cli_photo_' + cliente, photo);
+  if (photo) dbPhotoSet('hk_cli_photo_' + cliente, photo);
   closeModal('modal-crear'); renderInforme(); dbSave('informeData', informeData);
 }
 function informeDelCliente(id) {
@@ -2555,7 +2604,7 @@ function refSaveCargo() {
   const id = Date.now();
   refData.push({ id, cargo, cliente: cliente||'Sin especificar', refs:[] });
   const photo = getCliPhotoByName(cliente);
-  if (photo && cliente) localStorage.setItem('hk_cli_photo_' + cliente, photo);
+  if (photo && cliente) dbPhotoSet('hk_cli_photo_' + cliente, photo);
   closeModal('modal-crear');
   renderRef(); dbSave('refData', refData);
 }
@@ -2934,7 +2983,7 @@ function presSetCliPhoto(dataURL) {
 }
 function presRemoveCliPhoto() {
   const cliente = presData.find(c => c.id === presState.clienteId);
-  if (cliente) localStorage.removeItem('hk_pres_photo_' + cliente.id);
+  if (cliente) dbPhotoRemove('hk_pres_photo_' + cliente.id);
   _presEditCliPhoto = null;
   closeModal('modal-crear'); renderPres();
   showToast('Foto eliminada');
@@ -2949,7 +2998,7 @@ function presUpdateCliente() {
   cliente.industria = industria;
   if (_presEditCliPhoto) {
     compressPhoto(_presEditCliPhoto).then(b64 => {
-      localStorage.setItem('hk_pres_photo_' + cliente.id, b64);
+      dbPhotoSet('hk_pres_photo_' + cliente.id, b64);
       _presEditCliPhoto = null;
     });
   }
@@ -3009,8 +3058,8 @@ async function presSaveCliente() {
   let photo = _presEditCliPhoto || getCliPhotoByName(cliente);
   if (photo) {
     try { photo = await compressPhoto(photo); } catch(e) {}
-    localStorage.setItem('hk_pres_photo_' + id, photo);
-    localStorage.setItem('hk_cli_photo_' + cliente, photo);
+    dbPhotoSet('hk_pres_photo_' + id, photo);
+    dbPhotoSet('hk_cli_photo_' + cliente, photo);
   }
   _presEditCliPhoto = null;
   closeModal('modal-crear'); renderPres(); dbSave('presData', presData);
@@ -3567,7 +3616,7 @@ document.addEventListener('paste', e => {
     const reader = new FileReader();
     reader.onload = ev => {
       compressPhoto(ev.target.result).then(b64 => {
-        localStorage.setItem('hk_cli_photo_' + cliCurrentEmpresa, b64);
+        dbPhotoSet('hk_cli_photo_' + cliCurrentEmpresa, b64);
         openCliente(cliCurrentEmpresa);
         renderClientesList();
         showToast('Foto del cliente guardada');
@@ -4127,11 +4176,22 @@ function getProcData() {
   return [...base, ...cust];
 }
 
+function saveProcOverridesDB(overrides) {
+  localStorage.setItem('hk_proc_overrides', JSON.stringify(overrides));
+  const sb = getSB();
+  if (sb) sb.from('hk_store').upsert({ key: 'procOverrides', value: overrides, updated_at: new Date().toISOString() }).catch(e => console.warn('saveProcOverrides error', e));
+  _dbSaveRefresh();
+}
+function saveProcCustomDB(custom) {
+  localStorage.setItem('hk_proc_custom', JSON.stringify(custom));
+  const sb = getSB();
+  if (sb) sb.from('hk_store').upsert({ key: 'procCustom', value: custom, updated_at: new Date().toISOString() }).catch(e => console.warn('saveProcCustom error', e));
+  _dbSaveRefresh();
+}
 function saveProcOverride(id, fields) {
   const overrides = JSON.parse(localStorage.getItem('hk_proc_overrides')||'{}');
   overrides[id] = Object.assign(overrides[id]||{}, fields, { _ts: Date.now() });
-  localStorage.setItem('hk_proc_overrides', JSON.stringify(overrides));
-  _dbSaveRefresh();
+  saveProcOverridesDB(overrides);
 }
 
 function procStatusBadge(s) {
@@ -4400,7 +4460,7 @@ function saveProcEdit() {
     const newId  = 'PN' + newNum.toString().slice(-5);
     const newProc = Object.assign({ id: newId, alerta: 0, notas: [], duracion: 0 }, fields);
     custom.push(newProc);
-    localStorage.setItem('hk_proc_custom', JSON.stringify(custom));
+    saveProcCustomDB(custom);
     procCurrentId = newId;
     document.getElementById('mpd-id').textContent = `${newId} · ${fields.area||''} · nuevo`;
   } else {
@@ -4506,11 +4566,11 @@ function addProcNota() {
   const hoy   = new Date();
   notas.push({
     fecha:  `${hoy.getDate().toString().padStart(2,'0')}/${(hoy.getMonth()+1).toString().padStart(2,'0')}/${hoy.getFullYear()}`,
-    autor:  (JSON.parse(localStorage.getItem('hk_user')||'{}').nombre||'Usuario'),
+    autor:  (currentUser?.nombre || 'Usuario'),
     texto
   });
   overrides[procCurrentId].notas = notas;
-  localStorage.setItem('hk_proc_overrides', JSON.stringify(overrides));
+  saveProcOverridesDB(overrides);
   document.getElementById('mpd-nota-input').value = '';
   renderProcNotas(getProcData().find(x=>x.id===procCurrentId));
   renderProcesos();
@@ -4747,7 +4807,7 @@ function openCliente(empresa) {
   if (isAdmin) {
     avatarEl.title = 'Clic para cambiar foto';
     avatarEl.style.cursor = 'pointer';
-    avatarEl.onclick = () => { const fi = document.createElement('input'); fi.type='file'; fi.accept='image/*'; fi.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=ev=>{ compressPhoto(ev.target.result).then(b64=>{ localStorage.setItem('hk_cli_photo_'+empresa, b64); openCliente(empresa); renderClientesList(); showToast('Foto guardada'); }); }; r.readAsDataURL(f); }; fi.click(); };
+    avatarEl.onclick = () => { const fi = document.createElement('input'); fi.type='file'; fi.accept='image/*'; fi.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const r=new FileReader(); r.onload=ev=>{ compressPhoto(ev.target.result).then(b64=>{ dbPhotoSet('hk_cli_photo_'+empresa, b64); openCliente(empresa); renderClientesList(); showToast('Foto guardada'); }); }; r.readAsDataURL(f); }; fi.click(); };
     if (removeBtn) removeBtn.style.display = cliPhoto ? '' : 'none';
     if (hintEl) hintEl.style.display = cliPhoto ? 'none' : '';
   } else {
@@ -4811,7 +4871,7 @@ function closeCli() {
 
 function cliRemovePhoto() {
   if (!cliCurrentEmpresa) return;
-  localStorage.removeItem('hk_cli_photo_' + cliCurrentEmpresa);
+  dbPhotoRemove('hk_cli_photo_' + cliCurrentEmpresa);
   openCliente(cliCurrentEmpresa);
   renderClientesList();
   showToast('Foto eliminada');
@@ -4949,6 +5009,32 @@ function exportLocalData() {
   document.body.appendChild(a); a.click();
   document.body.removeChild(a); URL.revokeObjectURL(url);
   showToast('Datos exportados ✓');
+}
+
+async function pushLocalToSupabase() {
+  const sb = getSB();
+  if (!sb) { alert('No hay conexión a Supabase. Configura la API Key primero.'); return; }
+  showToast('Subiendo datos a Supabase...', 3000);
+  const overrides = JSON.parse(localStorage.getItem('hk_proc_overrides')||'{}');
+  const custom    = JSON.parse(localStorage.getItem('hk_proc_custom')||'[]');
+  try {
+    const upserts = [];
+    if (Object.keys(overrides).length) upserts.push(sb.from('hk_store').upsert({ key: 'procOverrides', value: overrides, updated_at: new Date().toISOString() }));
+    if (custom.length)                  upserts.push(sb.from('hk_store').upsert({ key: 'procCustom',    value: custom,    updated_at: new Date().toISOString() }));
+    // Also push presData, informeData, refData if present in localStorage
+    const pres = localStorage.getItem('hk_local_presData');
+    const info = localStorage.getItem('hk_local_informeData');
+    const ref  = localStorage.getItem('hk_local_refData');
+    if (pres) upserts.push(sb.from('hk_store').upsert({ key: 'presData',    value: JSON.parse(pres), updated_at: new Date().toISOString() }));
+    if (info) upserts.push(sb.from('hk_store').upsert({ key: 'informeData', value: JSON.parse(info), updated_at: new Date().toISOString() }));
+    if (ref)  upserts.push(sb.from('hk_store').upsert({ key: 'refData',     value: JSON.parse(ref),  updated_at: new Date().toISOString() }));
+    await Promise.all(upserts);
+    // Also push photos
+    await dbPhotosFlush();
+    showToast('✓ Datos subidos a Supabase — ya visibles para todos');
+  } catch(e) {
+    alert('Error al subir datos: ' + e.message);
+  }
 }
 
 function importLocalData(event) {
