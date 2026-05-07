@@ -231,50 +231,107 @@
 
   /* ── RESPONSIVE ── */
   @media(max-width:768px){
-    /* Show mobile UI */
+    /* ─ Mobile chrome ─ */
     #mobile-topbar{display:flex}
     #mobile-nav{display:flex}
-    /* Sidebar → drawer */
+
+    /* ─ Sidebar → drawer overlay ─ */
     .sidebar{transform:translateX(-100%);transition:transform .25s cubic-bezier(.4,0,.2,1);z-index:200}
     .sidebar.mob-open{transform:translateX(0)}
-    /* Main → full width, account for top+bottom bars */
-    .main{margin-left:0;padding:70px 14px 80px}
-    /* Grids → single or 2-col */
-    .grid-2{grid-template-columns:1fr}
-    .grid-3{grid-template-columns:1fr}
-    .grid-4{grid-template-columns:1fr 1fr;gap:10px}
-    /* Forms → single col */
+
+    /* ─ Main area ─ */
+    .main{margin-left:0;padding:62px 12px 74px}
+
+    /* ─ Login ─ */
+    #pg-login{padding:16px;align-items:center;min-height:100svh}
+    .login-card{padding:28px 20px;border-radius:16px}
+
+    /* ─ Grids → colapsar ─ */
+    .grid-2,.grid-3{grid-template-columns:1fr}
+    .grid-4{grid-template-columns:1fr 1fr;gap:8px}
+
+    /* ─ Formularios → 1 columna ─ */
     .form-row,.form-row-3{grid-template-columns:1fr}
-    /* Topbar → stack */
-    .topbar{flex-direction:column;align-items:flex-start;gap:10px;margin-bottom:18px}
-    .topbar h2{font-size:18px}
-    /* Modals → sheet from bottom */
-    .modal-overlay{padding:0;align-items:flex-end}
-    .modal{border-radius:20px 20px 0 0;max-height:92vh;max-width:100%}
-    .modal-header{padding:20px 20px 0}
-    .modal-body{padding:0 20px 24px}
-    /* Slide panels → full width */
-    .modal-proc{width:100%;right:-100%}
-    .modal-proc.open{right:0}
-    #cli-panel{width:100%;right:-100%}
-    /* Tables → scrollable */
-    .card{padding:14px;overflow-x:auto}
-    table{font-size:12px;min-width:500px}
-    /* Stat cards keep 2 cols */
-    .stat-card{padding:14px}
-    /* Buttons → full width in some contexts */
-    .topbar .btn{width:100%;justify-content:center}
-    /* Items grid */
-    #pres-grid,#inf-content{gap:10px}
-    .item-card{padding:14px}
-    /* Proc stats */
-    .proc-stats-row{gap:8px}
-    .proc-stat-card{min-width:100px;padding:10px 12px}
-    /* Topbar title smaller on mobile (shown in mob-topbar already) */
+
+    /* ─ Topbar → apilado ─ */
+    .topbar{flex-direction:column;align-items:stretch;gap:8px;margin-bottom:14px}
     .topbar>div>h2{font-size:16px}
-    .topbar>div>p{margin-top:2px;font-size:12px}
-    /* Dropzones */
-    .dz{padding:14px}
+    .topbar>div>p{font-size:11px;margin-top:1px}
+    .topbar>div:last-child{display:flex;gap:6px;flex-wrap:wrap}
+    .topbar .btn{flex:1;justify-content:center;font-size:12px;padding:8px 10px;min-width:120px}
+
+    /* ─ Cards ─ */
+    .card{padding:12px}
+    .card-sm{padding:12px}
+    .stat-card{padding:12px}
+    .stat-card .stat-icon{font-size:18px}
+
+    /* ─ Modales → sheet desde abajo ─ */
+    .modal-overlay{padding:0;align-items:flex-end}
+    .modal{border-radius:18px 18px 0 0;max-height:91vh;max-width:100%;width:100%}
+    .modal-header{padding:16px 16px 0}
+    .modal-body{padding:0 16px 24px}
+
+    /* ─ Tablas → scroll horizontal ─ */
+    .card{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    table{font-size:11px}
+    th,td{padding:7px 8px!important;white-space:nowrap}
+
+    /* ─ PROCESOS: tabla ─ */
+    .proc-table{font-size:11px;min-width:580px}
+    /* Forzar scroll en el card de la tabla (tiene overflow:hidden inline) */
+    #sec-procesos .card[style*="overflow:hidden"]{overflow-x:auto!important;overflow-y:visible!important}
+
+    /* ─ PROCESOS: filtros → scroll horizontal ─ */
+    .filter-row{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap;gap:6px;padding:8px 10px;scrollbar-width:none}
+    .filter-row::-webkit-scrollbar{display:none}
+    .filter-btn{flex-shrink:0;font-size:11px;padding:4px 9px}
+    .filter-select{flex-shrink:0;font-size:11px;padding:4px 6px}
+    .filter-search{min-width:110px;font-size:11px}
+    .proc-count-bar{overflow-x:auto;flex-wrap:nowrap;white-space:nowrap;scrollbar-width:none;gap:10px}
+    .proc-count-bar::-webkit-scrollbar{display:none}
+
+    /* ─ PROCESOS: tarjetas de stats ─ */
+    .proc-stats-row{gap:6px;overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;scrollbar-width:none}
+    .proc-stats-row::-webkit-scrollbar{display:none}
+    .proc-stat-card{min-width:90px;flex-shrink:0;padding:8px 10px}
+    .proc-stat-num{font-size:18px}
+    .proc-stat-sub{font-size:10px}
+    .status-cards-row{overflow-x:auto;flex-wrap:nowrap;gap:6px;scrollbar-width:none}
+    .status-cards-row::-webkit-scrollbar{display:none}
+
+    /* ─ PROCESO DETALLE (panel lateral) → pantalla completa ─ */
+    .modal-proc{width:100%!important;right:-100vw!important;top:54px;bottom:62px;height:auto;box-shadow:none}
+    .modal-proc.open{right:0!important}
+    .modal-proc-header{padding:12px 14px}
+    .modal-proc-body{padding:14px}
+    .proc-edit-row{grid-template-columns:1fr}
+    .alerta-btns{flex-wrap:wrap}
+    .alerta-btn{flex:1;text-align:center;padding:6px 8px;font-size:11px;min-width:80px}
+
+    /* ─ CLIENTES: panel lateral → pantalla completa ─ */
+    #cli-panel{width:100%!important;top:54px;bottom:62px;height:auto;padding:16px}
+    #cli-panel.mob-panel-open{right:0!important}
+
+    /* ─ Items cards ─ */
+    #pres-grid,#inf-content{gap:8px}
+    .item-card{padding:12px}
+    .add-card{min-height:90px}
+
+    /* ─ Dropzones ─ */
+    .dz{padding:12px}
+    .dz-sm{padding:10px}
+    .dz-icon{font-size:20px}
+    .dz-title{font-size:13px}
+
+    /* ─ Back btn + breadcrumbs ─ */
+    .back-btn{font-size:12px;padding:5px 10px}
+
+    /* ─ Presentaciones/Informes grid ─ */
+    #pres-grid{display:grid;grid-template-columns:1fr 1fr}
+
+    /* ─ Badges más pequeñas ─ */
+    .badge{font-size:10px;padding:3px 7px}
   }
 
   /* ── PROCESOS ── */
@@ -4738,12 +4795,16 @@ function openCliente(empresa) {
   }).join('');
 
   // Show panel
-  document.getElementById('cli-panel').style.right = '0';
+  const _cp = document.getElementById('cli-panel');
+  _cp.style.right = '0';
+  _cp.classList.add('mob-panel-open');
   document.getElementById('cli-dim').style.display = 'block';
 }
 
 function closeCli() {
-  document.getElementById('cli-panel').style.right = '-500px';
+  const _cp = document.getElementById('cli-panel');
+  _cp.style.right = '-500px';
+  _cp.classList.remove('mob-panel-open');
   document.getElementById('cli-dim').style.display = 'none';
   cliCurrentEmpresa = null;
 }
