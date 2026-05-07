@@ -216,8 +216,66 @@
   .step-label{font-size:11px;color:#64748b}
   .step.done .step-label,.step.active .step-label{color:#f1f5f9}
 
-  /* responsive */
-  @media(max-width:768px){.grid-4{grid-template-columns:1fr 1fr}.main{margin-left:0;padding:16px}.sidebar{display:none}}
+  /* ── MOBILE NAV BAR ── */
+  #mobile-topbar{display:none;position:fixed;top:0;left:0;right:0;height:54px;background:var(--bg2);border-bottom:1px solid var(--border);z-index:150;align-items:center;padding:0 14px;gap:12px}
+  #mobile-topbar .hk-logo-sm{width:30px;height:30px;background:var(--orange);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:#fff;flex-shrink:0}
+  #mobile-topbar .mob-title{font-size:14px;font-weight:700;color:#f1f5f9;flex:1}
+  #mob-menu-btn{background:none;border:none;color:#94a3b8;font-size:22px;cursor:pointer;padding:4px;line-height:1}
+  #mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;height:62px;background:var(--bg2);border-top:1px solid var(--border);z-index:150;align-items:center;justify-content:space-around;padding:0 4px 4px}
+  .mob-nav-btn{display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:none;color:#64748b;cursor:pointer;font-family:inherit;padding:6px 10px;border-radius:10px;min-width:52px;transition:.15s;font-size:10px;font-weight:600}
+  .mob-nav-btn .mn-icon{font-size:20px;line-height:1}
+  .mob-nav-btn.active{color:var(--orange)}
+  /* Sidebar overlay on mobile */
+  #sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:199}
+  #sidebar-overlay.open{display:block}
+
+  /* ── RESPONSIVE ── */
+  @media(max-width:768px){
+    /* Show mobile UI */
+    #mobile-topbar{display:flex}
+    #mobile-nav{display:flex}
+    /* Sidebar → drawer */
+    .sidebar{transform:translateX(-100%);transition:transform .25s cubic-bezier(.4,0,.2,1);z-index:200}
+    .sidebar.mob-open{transform:translateX(0)}
+    /* Main → full width, account for top+bottom bars */
+    .main{margin-left:0;padding:70px 14px 80px}
+    /* Grids → single or 2-col */
+    .grid-2{grid-template-columns:1fr}
+    .grid-3{grid-template-columns:1fr}
+    .grid-4{grid-template-columns:1fr 1fr;gap:10px}
+    /* Forms → single col */
+    .form-row,.form-row-3{grid-template-columns:1fr}
+    /* Topbar → stack */
+    .topbar{flex-direction:column;align-items:flex-start;gap:10px;margin-bottom:18px}
+    .topbar h2{font-size:18px}
+    /* Modals → sheet from bottom */
+    .modal-overlay{padding:0;align-items:flex-end}
+    .modal{border-radius:20px 20px 0 0;max-height:92vh;max-width:100%}
+    .modal-header{padding:20px 20px 0}
+    .modal-body{padding:0 20px 24px}
+    /* Slide panels → full width */
+    .modal-proc{width:100%;right:-100%}
+    .modal-proc.open{right:0}
+    #cli-panel{width:100%;right:-100%}
+    /* Tables → scrollable */
+    .card{padding:14px;overflow-x:auto}
+    table{font-size:12px;min-width:500px}
+    /* Stat cards keep 2 cols */
+    .stat-card{padding:14px}
+    /* Buttons → full width in some contexts */
+    .topbar .btn{width:100%;justify-content:center}
+    /* Items grid */
+    #pres-grid,#inf-content{gap:10px}
+    .item-card{padding:14px}
+    /* Proc stats */
+    .proc-stats-row{gap:8px}
+    .proc-stat-card{min-width:100px;padding:10px 12px}
+    /* Topbar title smaller on mobile (shown in mob-topbar already) */
+    .topbar>div>h2{font-size:16px}
+    .topbar>div>p{margin-top:2px;font-size:12px}
+    /* Dropzones */
+    .dz{padding:14px}
+  }
 
   /* ── PROCESOS ── */
   .proc-stats-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
@@ -322,6 +380,36 @@
 
 <!-- ═══════════════════════ APP SHELL ═══════════════════════ -->
 <div id="pg-app">
+
+  <!-- MOBILE TOP BAR -->
+  <div id="mobile-topbar">
+    <button id="mob-menu-btn" onclick="toggleMobSidebar()">☰</button>
+    <div class="hk-logo-sm">HK</div>
+    <span class="mob-title" id="mob-section-title">Dashboard</span>
+  </div>
+
+  <!-- MOBILE BOTTOM NAV -->
+  <nav id="mobile-nav">
+    <button class="mob-nav-btn active" id="mn-dashboard" onclick="showSection('dashboard');setMobActive('dashboard')">
+      <span class="mn-icon">⊞</span>Inicio
+    </button>
+    <button class="mob-nav-btn" id="mn-evaluacion" onclick="showSection('evaluacion');setMobActive('evaluacion')">
+      <span class="mn-icon">📋</span>Informes
+    </button>
+    <button class="mob-nav-btn" id="mn-laminas" onclick="showSection('laminas');setMobActive('laminas')">
+      <span class="mn-icon">🖼</span>Pres.
+    </button>
+    <button class="mob-nav-btn" id="mn-procesos" onclick="showSection('procesos');setMobActive('procesos')">
+      <span class="mn-icon">🔄</span>Procesos
+    </button>
+    <button class="mob-nav-btn" id="mn-more" onclick="toggleMobSidebar()">
+      <span class="mn-icon">⋯</span>Más
+    </button>
+  </nav>
+
+  <!-- SIDEBAR OVERLAY (mobile) -->
+  <div id="sidebar-overlay" onclick="closeMobSidebar()"></div>
+
   <!-- SIDEBAR -->
   <div class="sidebar">
     <div class="sidebar-logo">
@@ -4825,6 +4913,36 @@ function importLocalData(event) {
   reader.readAsText(file);
   event.target.value = '';
 }
+
+// ─── MOBILE NAV ───
+const _MOB_TITLES = {
+  dashboard: 'Dashboard', evaluacion: 'Informe Candidato',
+  narrativo: 'Referencias', laminas: 'Presentaciones',
+  procesos: 'Procesos', clientes: 'Clientes',
+  admin: 'Panel Admin', usuarios: 'Usuarios'
+};
+function setMobActive(name) {
+  document.querySelectorAll('.mob-nav-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('mn-' + name);
+  if (btn) btn.classList.add('active');
+  const title = document.getElementById('mob-section-title');
+  if (title) title.textContent = _MOB_TITLES[name] || 'Portal HK';
+}
+function toggleMobSidebar() {
+  document.querySelector('.sidebar').classList.toggle('mob-open');
+  document.getElementById('sidebar-overlay').classList.toggle('open');
+}
+function closeMobSidebar() {
+  document.querySelector('.sidebar').classList.remove('mob-open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+}
+// Hook showSection to also update mobile nav
+const _origShowSection = showSection;
+showSection = function(name) {
+  _origShowSection(name);
+  setMobActive(name);
+  closeMobSidebar();
+};
 
 // ─── INIT ───
 // API Key pre-configurada
