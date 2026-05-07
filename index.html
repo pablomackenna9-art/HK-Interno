@@ -723,18 +723,22 @@
     <!-- ── USUARIOS ── -->
     <div id="sec-usuarios" style="display:none">
       <div class="topbar">
-        <div><h2>👥 Usuarios del Sistema</h2><p>Gestión de consultores y accesos</p></div>
-        <button class="btn btn-primary">+ Nuevo Usuario</button>
+        <div><h2>👥 Usuarios del Sistema</h2><p>Gestión de consultores y accesos al portal</p></div>
+        <button class="btn btn-primary" onclick="openModalUsuario()">+ Nuevo Usuario</button>
       </div>
-      <div class="card">
+      <div class="card" style="margin-bottom:20px">
         <table>
           <thead><tr><th>Usuario</th><th>Email</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
-          <tbody>
-            <tr><td><div style="display:flex;align-items:center;gap:10px"><div class="user-avatar" style="width:32px;height:32px;font-size:12px">PM</div><strong>Pablo Mackenna</strong></div></td><td>pmackenna@hkchile.cl</td><td><span class="badge badge-orange">Administrador</span></td><td><span class="badge badge-green">Activo</span></td><td><button class="btn btn-ghost btn-sm">Editar</button></td></tr>
-            <tr><td><div style="display:flex;align-items:center;gap:10px"><div class="user-avatar" style="width:32px;height:32px;font-size:12px;background:#3b82f6">FM</div><strong>Francisca Montoya</strong></div></td><td>fmontoya@hkchile.cl</td><td><span class="badge badge-blue">Consultor Senior</span></td><td><span class="badge badge-green">Activo</span></td><td><button class="btn btn-ghost btn-sm">Editar</button></td></tr>
-            <tr><td><div style="display:flex;align-items:center;gap:10px"><div class="user-avatar" style="width:32px;height:32px;font-size:12px;background:#a855f7">RS</div><strong>Rodrigo Saavedra</strong></div></td><td>rsaavedra@hkchile.cl</td><td><span class="badge badge-purple">Consultor</span></td><td><span class="badge badge-green">Activo</span></td><td><button class="btn btn-ghost btn-sm">Editar</button></td></tr>
-          </tbody>
+          <tbody id="usuarios-tbody"><tr><td colspan="5" style="text-align:center;color:#64748b;padding:24px">Cargando usuarios...</td></tr></tbody>
         </table>
+      </div>
+      <div class="card" style="padding:20px">
+        <div style="font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:8px">📦 Migración de Datos Locales</div>
+        <p style="font-size:12px;color:#64748b;margin-bottom:14px">Exporta las fotos y datos de este navegador para importarlos en otro dispositivo o en la versión web.</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-ghost" onclick="exportLocalData()">📤 Exportar datos (fotos + configuración)</button>
+          <label class="btn btn-ghost" style="cursor:pointer">📥 Importar datos<input type="file" accept=".json" onchange="importLocalData(event)" style="display:none"/></label>
+        </div>
       </div>
     </div>
 
@@ -1217,6 +1221,49 @@
   </div>
 </div>
 
+<!-- ═══ MODAL NUEVO USUARIO ═══ -->
+<div class="modal-overlay" id="modal-nuevo-usuario" onclick="closeModalOut(event,'modal-nuevo-usuario')">
+  <div class="modal" style="max-width:500px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>👤 Nuevo Consultor</h3>
+      <button class="modal-close" onclick="closeModal('modal-nuevo-usuario')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Nombre Completo *</label>
+          <input type="text" id="nu-nombre" placeholder="Ej: María González"/>
+        </div>
+        <div class="form-group" style="max-width:110px">
+          <label>Iniciales</label>
+          <input type="text" id="nu-initials" placeholder="MG" maxlength="3" style="text-transform:uppercase"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Correo Corporativo *</label>
+        <input type="email" id="nu-email" placeholder="mgonzalez@hkchile.cl"/>
+      </div>
+      <div class="form-group">
+        <label>Contraseña de Acceso *</label>
+        <input type="password" id="nu-pass" placeholder="Mínimo 6 caracteres"/>
+      </div>
+      <div class="form-group">
+        <label>Rol</label>
+        <select id="nu-rol">
+          <option value="Consultor">Consultor</option>
+          <option value="Consultor Senior">Consultor Senior</option>
+          <option value="Administrador">Administrador</option>
+        </select>
+      </div>
+      <div id="nu-error" style="display:none;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px;font-size:13px;color:#ef4444;margin-bottom:12px"></div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="closeModal('modal-nuevo-usuario')">Cancelar</button>
+        <button class="btn btn-primary" onclick="saveNuevoUsuario()">✓ Crear Cuenta</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast">✓ Guardado exitosamente</div>
 
@@ -1370,7 +1417,7 @@ function doLogin() {
   const pass  = document.getElementById('login-pass').value;
   const errEl = document.getElementById('login-error');
 
-  const user = USERS.find(u => u.email === email && u.pass === pass);
+  const user = getAllUsers().find(u => u.email === email && u.pass === pass);
   if (!user) {
     errEl.style.display = 'block';
     document.getElementById('login-pass').style.borderColor = '#ef4444';
@@ -1389,7 +1436,8 @@ function doLogin() {
   document.getElementById('pg-login').style.display = 'none';
   document.getElementById('pg-app').style.display = 'flex';
   renderDashboard();
-  // Cargar datos desde Supabase/localStorage
+  // Cargar datos desde Supabase/localStorage (incluyendo usuarios extra)
+  loadExtraUsers().then(() => renderUsuarios());
   dbLoadAll();
   // Pre-llenar campos de configuración
   const sbKeyEl = document.getElementById('sb-key-input');
@@ -1425,6 +1473,7 @@ function showSection(name) {
   if (name === 'laminas') renderPres();
   if (name === 'procesos') renderProcesos();
   if (name === 'clientes') renderClientes();
+  if (name === 'usuarios') renderUsuarios();
 }
 
 // ─── INFORME CANDIDATO — navegación ───
@@ -4629,6 +4678,146 @@ function saveCliContact() {
   msg.style.display = 'inline';
   setTimeout(() => msg.style.display = 'none', 2000);
   renderClientesList(); // refresh cards
+}
+
+// ─── USUARIOS DINÁMICOS ───
+let extraUsers = [];
+
+async function loadExtraUsers() {
+  try {
+    const stored = await dbLoad('extraUsers');
+    extraUsers = Array.isArray(stored) ? stored : [];
+  } catch(e) { extraUsers = []; }
+}
+
+function getAllUsers() {
+  return [...USERS, ...extraUsers];
+}
+
+const _USER_COLORS = ['#f97316','#3b82f6','#a855f7','#22c55e','#ec4899','#14b8a6','#f59e0b','#6366f1'];
+function _rolBadge(rol) {
+  if (rol === 'Administrador')   return 'badge-orange';
+  if (rol === 'Consultor Senior') return 'badge-blue';
+  return 'badge-purple';
+}
+
+function renderUsuarios() {
+  const tbody = document.getElementById('usuarios-tbody');
+  if (!tbody) return;
+  const all = getAllUsers();
+  if (!all.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#64748b;padding:24px">Sin usuarios</td></tr>'; return; }
+  tbody.innerHTML = all.map((u, i) => {
+    const color   = _USER_COLORS[i % _USER_COLORS.length];
+    const isExtra = extraUsers.some(e => e.email === u.email);
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:10px">
+        <div class="user-avatar" style="width:32px;height:32px;font-size:12px;background:${color}">${u.initials}</div>
+        <strong>${u.nombre}</strong>
+      </div></td>
+      <td>${u.email}</td>
+      <td><span class="badge ${_rolBadge(u.rol)}">${u.rol}</span></td>
+      <td><span class="badge badge-green">Activo</span></td>
+      <td>${isExtra
+        ? `<button class="btn btn-ghost btn-sm" onclick="deleteExtraUser('${u.email}')">✕ Eliminar</button>`
+        : '<span style="color:#475569;font-size:11px">Base</span>'
+      }</td>
+    </tr>`;
+  }).join('');
+}
+
+function openModalUsuario() {
+  ['nu-nombre','nu-email','nu-pass','nu-initials'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  const errEl = document.getElementById('nu-error');
+  if (errEl) errEl.style.display = 'none';
+  const rolEl = document.getElementById('nu-rol');
+  if (rolEl) rolEl.value = 'Consultor';
+  openModal('modal-nuevo-usuario');
+}
+
+async function saveNuevoUsuario() {
+  const nombre   = (document.getElementById('nu-nombre').value || '').trim();
+  const email    = (document.getElementById('nu-email').value || '').trim().toLowerCase();
+  const pass     = (document.getElementById('nu-pass').value || '');
+  const rol      = document.getElementById('nu-rol').value;
+  let   initials = (document.getElementById('nu-initials').value || '').trim().toUpperCase();
+  const errEl    = document.getElementById('nu-error');
+
+  errEl.style.display = 'none';
+  if (!nombre || !email || !pass) {
+    errEl.textContent = '✕ Completa nombre, correo y contraseña.';
+    errEl.style.display = 'block'; return;
+  }
+  if (pass.length < 4) {
+    errEl.textContent = '✕ La contraseña debe tener al menos 4 caracteres.';
+    errEl.style.display = 'block'; return;
+  }
+  if (getAllUsers().some(u => u.email === email)) {
+    errEl.textContent = '✕ Ya existe un usuario con ese correo.';
+    errEl.style.display = 'block'; return;
+  }
+  if (!initials) {
+    initials = nombre.split(/\s+/).map(w => w[0] || '').join('').slice(0, 2).toUpperCase();
+  }
+
+  const newUser = { email, pass, nombre, rol, initials };
+  extraUsers.push(newUser);
+  await dbSave('extraUsers', extraUsers);
+  closeModal('modal-nuevo-usuario');
+  renderUsuarios();
+  showToast('Cuenta creada: ' + nombre);
+}
+
+async function deleteExtraUser(email) {
+  if (!confirm('¿Eliminar la cuenta de ' + email + '?\nEsta acción no se puede deshacer.')) return;
+  extraUsers = extraUsers.filter(u => u.email !== email);
+  await dbSave('extraUsers', extraUsers);
+  renderUsuarios();
+  showToast('Usuario eliminado');
+}
+
+// ─── EXPORT / IMPORT LOCAL DATA ───
+function exportLocalData() {
+  const data = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('hk_')) {
+      data[key] = localStorage.getItem(key);
+    }
+  }
+  const fecha = new Date().toISOString().slice(0,10);
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = 'hk-datos-' + fecha + '.json';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  showToast('Datos exportados ✓');
+}
+
+function importLocalData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      let count = 0;
+      Object.entries(data).forEach(([key, val]) => {
+        if (key.startsWith('hk_')) { localStorage.setItem(key, val); count++; }
+      });
+      showToast(count + ' entradas importadas ✓');
+      // Recargar vistas con nuevas fotos
+      try { renderPres(); } catch(_){}
+      try { renderInforme(); } catch(_){}
+      try { renderRef(); } catch(_){}
+      try { renderClientes(); } catch(_){}
+      try { await loadExtraUsers(); renderUsuarios(); } catch(_){}
+    } catch(err) { alert('Archivo inválido: ' + err.message); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
 }
 
 // ─── INIT ───
