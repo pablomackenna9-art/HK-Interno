@@ -1304,12 +1304,12 @@
 
 <script>
 // ─── SUPABASE ───
-const SB_URL = 'https://wuaiyuulidzisvpbnpob.supabase.co';
+const SB_URL  = 'https://wuaiyuulidzisvpbnpob.supabase.co';
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1YWl5dXVsaWR6aXN2cGJucG9iIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMjE2ODAsImV4cCI6MjA5Mjg5NzY4MH0.suYDqCDy4aBEPkXDKg48p1CkZ_29fS1eRGB6klyb1rg';
 let _sbClient = null;
 function getSB() {
   if (_sbClient) return _sbClient;
-  const key = localStorage.getItem('hk_sb_key');
-  if (!key) return null;
+  const key = localStorage.getItem('hk_sb_key') || SB_KEY;
   _sbClient = supabase.createClient(SB_URL, key);
   return _sbClient;
 }
@@ -1403,10 +1403,7 @@ let informeState = { view:'clientes', clienteId:null, procesoId:null };
 
 // ─── USUARIOS ───
 const USERS = [
-  { email: 'pmackenna@hkchile.cl',   pass: 'Hkhuman901', nombre: 'Pablo Mackenna',      rol: 'Administrador',    initials: 'PM' },
-  { email: 'fmontoya@hkchile.cl',    pass: 'HK2024',     nombre: 'Francisca Montoya',   rol: 'Consultor Senior', initials: 'FM' },
-  { email: 'rsaavedra@hkchile.cl',   pass: 'HK2024',     nombre: 'Rodrigo Saavedra',    rol: 'Consultor',        initials: 'RS' },
-  { email: 'demo@hkchile.cl',        pass: 'demo',       nombre: 'Usuario Demo',        rol: 'Consultor',        initials: 'UD' },
+  { email: 'pmackenna@hkchile.cl', pass: 'Hkhuman901', nombre: 'Pablo Mackenna', rol: 'Administrador', initials: 'PM' },
 ];
 
 let currentUser = null;
