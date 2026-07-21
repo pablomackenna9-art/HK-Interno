@@ -1444,6 +1444,15 @@
     <button onclick="closeCli()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#64748b;padding:4px">✕</button>
   </div>
 
+  <!-- Sector field (visible to all) -->
+  <div style="background:#fff;border-radius:12px;padding:12px 16px;margin-bottom:12px;border:1px solid #d1dae6;display:flex;align-items:center;gap:10px">
+    <span style="font-size:11px;font-weight:700;color:var(--orange);letter-spacing:.5px;text-transform:uppercase;white-space:nowrap">Sector</span>
+    <input id="cli-c-sector" type="text" placeholder="Ej: Banca y Finanzas, Retail, Minería..."
+      style="flex:1;padding:6px 10px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:7px;font-size:13px;font-family:inherit;color:#1e293b;outline:none"/>
+    <button onclick="saveCliSector()" style="padding:6px 14px;background:var(--orange);border:none;border-radius:7px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">Guardar</button>
+    <span id="cli-sector-saved" style="display:none;font-size:11px;color:#22c55e">✓</span>
+  </div>
+
   <!-- Contact info -->
   <div id="cli-contact-section" style="background:#fff;border-radius:12px;padding:16px;margin-bottom:18px;border:1px solid #d1dae6">
     <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--orange);margin-bottom:12px">Contacto Principal</div>
@@ -6934,6 +6943,7 @@ function renderClientesList() {
         ${avatarHTML}
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.empresa}</div>
+          ${c.industria ? `<div style="font-size:10px;color:var(--orange);margin-top:1px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.industria}</div>` : ''}
           ${currentUser?.rol==='Administrador' && hasContact ? `<div style="font-size:11px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${contacto.nombre||''}${contacto.cargo?' · '+contacto.cargo:''}</div>${contacto.contraparte?`<div style="font-size:10px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">↔ ${contacto.contraparte}</div>`:''}` : ''}
         </div>
       </div>
@@ -6997,6 +7007,9 @@ function openCliente(empresa) {
   document.getElementById('cli-panel-counts').textContent = `${data.procesos.length} procesos · ${activos} activos`;
 
   // Fill contact fields
+  const _sectorEl = document.getElementById('cli-c-sector');
+  if (_sectorEl) _sectorEl.value = data.industria || '';
+  document.getElementById('cli-sector-saved').style.display = 'none';
   document.getElementById('cli-c-nombre').value = c.nombre || '';
   document.getElementById('cli-c-cargo').value = c.cargo || '';
   document.getElementById('cli-c-mail').value = c.mail || '';
@@ -7072,6 +7085,22 @@ async function saveCliContact() {
   msg.style.display = 'inline';
   setTimeout(() => msg.style.display = 'none', 2000);
   renderClientesList(); // refresh cards
+}
+
+async function saveCliSector() {
+  if (!cliCurrentEmpresa) return;
+  const sector = (document.getElementById('cli-c-sector').value || '').trim();
+  const existing = cliExtra.find(e => e.empresa === cliCurrentEmpresa);
+  if (existing) {
+    existing.industria = sector;
+  } else {
+    cliExtra.push({ id: Date.now(), empresa: cliCurrentEmpresa, industria: sector });
+  }
+  await dbSave('cliExtra', cliExtra);
+  const msg = document.getElementById('cli-sector-saved');
+  if (msg) { msg.style.display = 'inline'; setTimeout(() => msg.style.display = 'none', 2000); }
+  showToast('Sector guardado');
+  renderClientesList();
 }
 
 // ─── ADJUNTOS EN PROCESOS ───
