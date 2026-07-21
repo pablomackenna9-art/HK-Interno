@@ -9750,23 +9750,17 @@ async function generarPropuestaWord() {
   if (!window.docx) {
     showToast('Cargando librería Word...');
     const _loadDocx = url => new Promise((res,rej) => {
-      const s=document.createElement('script'); s.src=url; s.crossOrigin='anonymous';
-      s.onload=()=>setTimeout(res,100); s.onerror=rej; document.head.appendChild(s);
+      const s=document.createElement('script'); s.src=url;
+      s.onload=()=>setTimeout(res,150); s.onerror=rej; document.head.appendChild(s);
     });
     try {
-      await _loadDocx('https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.min.js');
+      await _loadDocx('/docx.min.js');
     } catch(e1) {
-      try {
-        await _loadDocx('https://unpkg.com/docx@8.5.0/build/index.min.js');
-      } catch(e2) {
-        showToast('Error: Sin conexion para cargar libreria');
-        alert('No se pudo cargar la libreria Word.\nVerifica tu conexion a internet.\nError: '+(e2?.message||e2));
-        return;
-      }
+      try { await _loadDocx('https://unpkg.com/docx@8.5.0/build/index.umd.js'); } catch(e2) {}
     }
     if (!window.docx) {
-      showToast('Error: libreria Word no disponible');
-      alert('La libreria Word se cargo pero no esta disponible.\nRecarga la pagina e intenta de nuevo.');
+      showToast('Error cargando librería Word');
+      alert('No se pudo cargar la librería Word.\nRecarga la página e intenta de nuevo.');
       return;
     }
   }
@@ -9909,16 +9903,9 @@ function _initPropuesta() {
   if (!window.docx && !window._docxLoading) {
     window._docxLoading = true;
     const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.min.js';
-    s.crossOrigin = 'anonymous';
+    s.src = '/docx.min.js';
     s.onload = () => { window._docxLoading = false; };
-    s.onerror = () => {
-      window._docxLoading = false;
-      const s2 = document.createElement('script');
-      s2.src = 'https://unpkg.com/docx@8.5.0/build/index.min.js';
-      s2.crossOrigin = 'anonymous';
-      document.head.appendChild(s2);
-    };
+    s.onerror = () => { window._docxLoading = false; };
     document.head.appendChild(s);
   }
 }
