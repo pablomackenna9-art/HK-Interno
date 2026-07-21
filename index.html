@@ -1307,8 +1307,19 @@
       <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--orange);margin-bottom:14px">Experiencia en el Sector</div>
       <div class="form-group"><label>Párrafo de experiencia (editable)</label><textarea id="prop-exp-texto" rows="3" placeholder="Contamos con amplia trayectoria acompañando búsquedas de posiciones en el sector..."></textarea></div>
       <div style="margin-top:14px">
-        <label style="display:block;font-size:12px;font-weight:600;color:#94a3b8;margin-bottom:10px">Logos de empresas a mostrar</label>
-        <div id="prop-logos-grid" style="display:flex;flex-wrap:wrap;gap:10px;min-height:64px"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <label style="font-size:12px;font-weight:600;color:#94a3b8">Logos de empresas a mostrar</label>
+          <button type="button" id="prop-logos-toggle-btn" onclick="toggleLogosPanel()"
+            style="padding:6px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:#94a3b8;font-size:12px;cursor:pointer;font-family:inherit">
+            Seleccionar ▼
+          </button>
+        </div>
+        <div id="prop-logos-preview" style="display:flex;flex-wrap:wrap;gap:6px;min-height:36px;margin-bottom:8px;align-items:center">
+          <span style="font-size:11px;color:#475569">Ninguna empresa seleccionada</span>
+        </div>
+        <div id="prop-logos-panel" style="display:none;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:16px;max-height:400px;overflow-y:auto">
+          <div id="prop-logos-grid"></div>
+        </div>
       </div>
     </div>
     <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:20px">
@@ -2164,7 +2175,7 @@
           <input type="text" id="nc-empresa" placeholder="Banco BCI"/>
         </div>
         <div class="form-group" style="flex:1">
-          <label>Industria</label>
+          <label>Sector / Industria</label>
           <input type="text" id="nc-industria" placeholder="Banca y Finanzas"/>
         </div>
       </div>
@@ -9604,13 +9615,50 @@ function openPropuestaModal() {
   }, 50);
 }
 function closePropuestaModal() {}
+function toggleLogosPanel() {
+  const panel = document.getElementById('prop-logos-panel');
+  const btn   = document.getElementById('prop-logos-toggle-btn');
+  const isOpen = panel.style.display !== 'none';
+  if (!isOpen) {
+    _renderPropLogos();
+    panel.style.display = '';
+    if (btn) btn.textContent = 'Cerrar ▲';
+  } else {
+    panel.style.display = 'none';
+    if (btn) btn.textContent = 'Seleccionar ▼';
+    _updateLogosPreview();
+  }
+}
+function _updateLogosPreview() {
+  const preview = document.getElementById('prop-logos-preview');
+  if (!preview) return;
+  const checked = [...document.querySelectorAll('.prop-logo-check:checked')];
+  if (!checked.length) {
+    preview.innerHTML = '<span style="font-size:11px;color:#475569">Ninguna empresa seleccionada</span>';
+    return;
+  }
+  preview.innerHTML = checked.map(cb => {
+    const val = cb.value;
+    let foto;
+    if (val.startsWith('cli_')) {
+      const rid = val.replace('cli_','');
+      foto = localStorage.getItem('hk_pres_photo_'+rid) || localStorage.getItem('hk_cli_photo_'+rid);
+    } else {
+      foto = (propuestaLogos.find(l => l.id === val)||{}).foto;
+    }
+    return foto ? `<img src="${foto}" style="height:30px;object-fit:contain;background:var(--bg3);border-radius:4px;padding:3px 6px;border:1px solid var(--border)" title="${val}">` : '';
+  }).join('');
+}
 function _renderPropLogos() {
   const cont = document.getElementById('prop-logos-grid');
   if (!cont) return;
-  // Collect all client logos from localStorage (hk_pres_photo_* and hk_cli_photo_*)
-  const cliMap = {};
   const _pd = (typeof presData !== 'undefined') ? presData : [];
-  _pd.forEach(c => { if (c.id) cliMap[c.id] = c.cliente || 'Cliente'; });
+  // Build id -> {nombre, sector}
+  const cliInfoMap = {};
+  _pd.forEach(c => { if (c.id) cliInfoMap[String(c.id)] = { nombre: c.cliente || 'Cliente', sector: c.industria || '' }; });
+  // Also get sector from getClientesData (matches by empresa name)
+  let cliDataMap = {};
+  try { getClientesData().forEach(c => { cliDataMap[c.empresa] = c.industria || ''; }); } catch(e) {}
   const cliLogos = [];
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i);
@@ -9621,24 +9669,42 @@ function _renderPropLogos() {
     const rawId = isPres ? k.replace('hk_pres_photo_', '') : k.replace('hk_cli_photo_', '');
     const foto  = localStorage.getItem(k);
     if (!foto) continue;
-    const nombre = cliMap[rawId] || cliMap[parseInt(rawId)] || 'Cliente';
+    const info   = cliInfoMap[rawId] || cliInfoMap[parseInt(rawId)] || {};
+    const nombre = info.nombre || 'Cliente';
+    const sector = info.sector || cliDataMap[nombre] || '';
     const uid    = 'cli_' + rawId;
     if (!cliLogos.find(x => x.id === uid))
-      cliLogos.push({ id: uid, nombre, foto });
+      cliLogos.push({ id: uid, nombre, foto, sector });
   }
-  // Extra manually uploaded logos
-  const customLogos = propuestaLogos.filter(l => !cliLogos.find(c => c.id === l.id));
-  const allLogos = [...cliLogos, ...customLogos];
-  cont.innerHTML = allLogos.map(l => `
-    <label style="display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;min-width:90px;max-width:120px">
-      <input type="checkbox" class="prop-logo-check" value="${l.id}" checked style="accent-color:var(--orange)">
-      <img src="${l.foto}" style="max-height:36px;max-width:90px;object-fit:contain" alt="${l.nombre}">
-      <span style="font-size:10px;color:#94a3b8;text-align:center;word-break:break-word">${l.nombre}</span>
-    </label>`).join('') +
-    `<div onclick="uploadPropLogo()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;background:rgba(249,115,22,0.05);border:1px dashed rgba(249,115,22,0.3);border-radius:8px;padding:10px;min-width:90px;min-height:80px">
-      <span style="font-size:22px;color:var(--orange)">+</span>
-      <span style="font-size:10px;color:var(--orange);text-align:center">Subir logo extra</span>
-    </div>`;
+  const customLogos = propuestaLogos.filter(l => !cliLogos.find(c => c.id === l.id))
+    .map(l => ({...l, sector: ''}));
+  const allLogos = [...cliLogos, ...customLogos].sort((a,b) => a.nombre.localeCompare(b.nombre));
+  // Group by sector
+  const groups = {};
+  allLogos.forEach(l => {
+    const s = l.sector || 'Sin sector';
+    if (!groups[s]) groups[s] = [];
+    groups[s].push(l);
+  });
+  const sortedSectors = Object.keys(groups).sort((a,b) => {
+    if (a === 'Sin sector') return 1; if (b === 'Sin sector') return -1;
+    return a.localeCompare(b);
+  });
+  cont.innerHTML = sortedSectors.map(sector => `
+    <div style="margin-bottom:16px">
+      <div style="font-size:10px;font-weight:700;color:var(--orange);letter-spacing:.6px;text-transform:uppercase;margin-bottom:8px;padding-left:2px">${sector}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${groups[sector].map(l => `
+          <label onchange="_updateLogosPreview()" style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;min-width:80px;max-width:110px">
+            <input type="checkbox" class="prop-logo-check" value="${l.id}" checked style="accent-color:var(--orange)">
+            <img src="${l.foto}" style="max-height:30px;max-width:80px;object-fit:contain" alt="${l.nombre}">
+            <span style="font-size:9px;color:#94a3b8;text-align:center;word-break:break-word;max-width:80px">${l.nombre}</span>
+          </label>`).join('')}
+      </div>
+    </div>`).join('') +
+  `<div onclick="uploadPropLogo()" style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 14px;background:rgba(249,115,22,0.05);border:1px dashed rgba(249,115,22,0.3);border-radius:8px;color:var(--orange);font-size:12px;margin-top:4px;width:fit-content">
+    <span style="font-size:16px">+</span> Subir logo extra
+  </div>`;
 }
 function uploadPropLogo() {
   const inp = document.createElement('input');
@@ -9682,8 +9748,27 @@ function _renderEquipoProp() {
 
 async function generarPropuestaWord() {
   if (!window.docx) {
-    showToast('Cargando librería...');
-    await new Promise((res,rej) => { const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.min.js'; s.crossOrigin='anonymous'; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
+    showToast('Cargando librería Word...');
+    const _loadDocx = url => new Promise((res,rej) => {
+      const s=document.createElement('script'); s.src=url; s.crossOrigin='anonymous';
+      s.onload=()=>setTimeout(res,100); s.onerror=rej; document.head.appendChild(s);
+    });
+    try {
+      await _loadDocx('https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.min.js');
+    } catch(e1) {
+      try {
+        await _loadDocx('https://unpkg.com/docx@8.5.0/build/index.min.js');
+      } catch(e2) {
+        showToast('Error: Sin conexion para cargar libreria');
+        alert('No se pudo cargar la libreria Word.\nVerifica tu conexion a internet.\nError: '+(e2?.message||e2));
+        return;
+      }
+    }
+    if (!window.docx) {
+      showToast('Error: libreria Word no disponible');
+      alert('La libreria Word se cargo pero no esta disponible.\nRecarga la pagina e intenta de nuevo.');
+      return;
+    }
   }
   const tratamiento=document.getElementById('prop-tratamiento').value;
   const nombre=document.getElementById('prop-nombre').value.trim();
@@ -9818,7 +9903,24 @@ function _initPropuesta() {
   if (!document.getElementById('prop-fecha').value)
     document.getElementById('prop-fecha').value = new Date().toISOString().slice(0,10);
   _renderPropLogos();
+  _updateLogosPreview();
   _renderEquipoProp();
+  // Pre-cargar libreria Word en background
+  if (!window.docx && !window._docxLoading) {
+    window._docxLoading = true;
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.min.js';
+    s.crossOrigin = 'anonymous';
+    s.onload = () => { window._docxLoading = false; };
+    s.onerror = () => {
+      window._docxLoading = false;
+      const s2 = document.createElement('script');
+      s2.src = 'https://unpkg.com/docx@8.5.0/build/index.min.js';
+      s2.crossOrigin = 'anonymous';
+      document.head.appendChild(s2);
+    };
+    document.head.appendChild(s);
+  }
 }
 // Hook showSection to also update mobile nav
 const _origShowSection = showSection;
