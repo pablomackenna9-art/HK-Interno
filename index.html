@@ -9607,19 +9607,31 @@ function closePropuestaModal() {}
 function _renderPropLogos() {
   const cont = document.getElementById('prop-logos-grid');
   if (!cont) return;
-  // Build from all clients in presData that have a logo
+  // Collect all client logos from localStorage (hk_pres_photo_* and hk_cli_photo_*)
+  const cliMap = {};
   const _pd = (typeof presData !== 'undefined') ? presData : [];
-  const cliLogos = _pd.map(c => {
-    const foto = localStorage.getItem('hk_pres_photo_' + c.id);
-    if (!foto) return null;
-    return { id:'cli_'+c.id, nombre:c.cliente||'Cliente', foto };
-  }).filter(Boolean);
+  _pd.forEach(c => { if (c.id) cliMap[c.id] = c.cliente || 'Cliente'; });
+  const cliLogos = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k) continue;
+    const isPres = k.startsWith('hk_pres_photo_');
+    const isCli  = k.startsWith('hk_cli_photo_');
+    if (!isPres && !isCli) continue;
+    const rawId = isPres ? k.replace('hk_pres_photo_', '') : k.replace('hk_cli_photo_', '');
+    const foto  = localStorage.getItem(k);
+    if (!foto) continue;
+    const nombre = cliMap[rawId] || cliMap[parseInt(rawId)] || 'Cliente';
+    const uid    = 'cli_' + rawId;
+    if (!cliLogos.find(x => x.id === uid))
+      cliLogos.push({ id: uid, nombre, foto });
+  }
   // Extra manually uploaded logos
   const customLogos = propuestaLogos.filter(l => !cliLogos.find(c => c.id === l.id));
   const allLogos = [...cliLogos, ...customLogos];
   cont.innerHTML = allLogos.map(l => `
     <label style="display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;min-width:90px;max-width:120px">
-      <input type="checkbox" class="prop-logo-check" value="${l.id}" style="accent-color:var(--orange)">
+      <input type="checkbox" class="prop-logo-check" value="${l.id}" checked style="accent-color:var(--orange)">
       <img src="${l.foto}" style="max-height:36px;max-width:90px;object-fit:contain" alt="${l.nombre}">
       <span style="font-size:10px;color:#94a3b8;text-align:center;word-break:break-word">${l.nombre}</span>
     </label>`).join('') +
@@ -9686,9 +9698,11 @@ async function generarPropuestaWord() {
     const val=cb.value;
     let l;
     if (val.startsWith('cli_')) {
-      const cliId=parseInt(val.replace('cli_',''));
-      const cli=(window.presData||[]).find(c=>c.id===cliId);
-      if (cli) { const foto=localStorage.getItem('hk_pres_photo_'+cliId); if(foto) l={id:val,nombre:cli.cliente,foto}; }
+      const rawId=val.replace('cli_','');
+      const foto=localStorage.getItem('hk_pres_photo_'+rawId)||localStorage.getItem('hk_cli_photo_'+rawId);
+      const _pd=(typeof presData!=='undefined')?presData:[];
+      const cli=_pd.find(c=>String(c.id)===rawId);
+      if(foto) l={id:val,nombre:cli?cli.cliente:rawId,foto};
     } else {
       l=propuestaLogos.find(x=>x.id===val);
     }
@@ -9706,12 +9720,12 @@ async function generarPropuestaWord() {
     const blob = await window.docx.Packer.toBlob(doc);
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Propuesta HK - '+empresa+' - '+cargoBuscado+'.docx'; a.click(); URL.revokeObjectURL(a.href);
     showToast('✓ Propuesta descargada');
-  } catch(e) { console.error('PropuestaWord error:', e); showToast('Error al generar: ' + (e.message||e)); }
+  } catch(e) { console.error('PropuestaWord error:', e); showToast('Error: ' + (e.message||String(e))); alert('Error generando Word: ' + (e.message||String(e))); }
 }
 
 function _buildPropDocx({tratamiento,nombre,cargo,empresa,fecha,cargoBuscado,expTexto,logosSeleccionados,equipoSeleccionado}) {
   const D=window.docx;
-  const toBuf=dataUrl=>{ const b64=dataUrl.split(',')[1]; const bin=atob(b64); const arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i); return arr.buffer; };
+  const toBuf=dataUrl=>{ const b64=dataUrl.split(',')[1]; const bin=atob(b64); const arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i); return arr; };
   const d=fecha?new Date(fecha+'T12:00:00'):new Date();
   const fechaTxt='Santiago, '+d.toLocaleDateString('es-CL',{day:'numeric',month:'long',year:'numeric'});
   const ORANGE='E8611C',GRAY='58595B',NAVY='1A3A5C',BGRAY='F2F2F2';
@@ -9724,7 +9738,7 @@ function _buildPropDocx({tratamiento,nombre,cargo,empresa,fecha,cargoBuscado,exp
   const statsTable=new D.Table({width:{size:9706,type:D.WidthType.DXA},rows:[new D.TableRow({children:[statCell('+20 años','de experiencia en Executive Search'),statCell('2007','miembros de InterSearch Worldwide'),statCell('12 meses','de garantía sobre cada búsqueda'),statCell('50 países','de cobertura a través de nuestra red')]})]});
   const equipoRows=equipoSeleccionado.map(m=>{
     const fW=m.foto?(m.ar>1?200:155):0; const fH=m.foto?Math.round(fW/m.ar):0;
-    const imgT=m.foto?(m.foto.includes('data:image/png')?'png':'jpg'):'jpg';
+    const imgT=m.foto?(m.foto.includes('data:image/png')?'png':'jpeg'):'jpeg';
     const fotoChildren=m.foto
       ?[new D.ImageRun({data:toBuf(m.foto),transformation:{width:fW,height:fH},type:imgT,altText:{title:m.nombre,description:m.nombre,name:m.nombre}})]
       :[new D.TextRun({text:m.nombre.split(' ').map(w=>w[0]).slice(0,2).join(''),font:'Calibri',size:28,bold:true,color:ORANGE})];
@@ -9742,7 +9756,7 @@ function _buildPropDocx({tratamiento,nombre,cargo,empresa,fecha,cargoBuscado,exp
   logosSeleccionados.forEach((l,i)=>{
     if(!l||!l.foto) return;
     const isJ=l.foto.includes('data:image/jpeg')||l.foto.includes('data:image/jpg');
-    logosChildren.push(new D.ImageRun({data:toBuf(l.foto),transformation:{width:100,height:44},type:isJ?'jpg':'png',altText:{title:l.nombre||'Logo',description:l.nombre||'Logo',name:(l.nombre||'Logo').replace(/[^a-z0-9]/gi,'_')}}));
+    logosChildren.push(new D.ImageRun({data:toBuf(l.foto),transformation:{width:100,height:44},type:isJ?'jpeg':'png',altText:{title:l.nombre||'Logo',description:l.nombre||'Logo',name:(l.nombre||'Logo').replace(/[^a-z0-9]/gi,'_')}}));
     if(i<logosSeleccionados.length-1)logosChildren.push(new D.TextRun({text:'    ',font:'Calibri',size:19}));
   });
   const logosP=logosChildren.length?new D.Paragraph({spacing:{before:120,after:160},children:logosChildren}):new D.Paragraph({spacing:{before:80,after:80},children:[new D.TextRun({text:'',size:19})]});
@@ -9794,7 +9808,7 @@ function _buildPropDocx({tratamiento,nombre,cargo,empresa,fecha,cargoBuscado,exp
     bodyP('La presente asesoría es de carácter exclusivo para el cliente. Esto significa que la empresa no podrá contratar los servicios de otra consultora para esta búsqueda mientras el proceso esté vigente.',{after:200}),
     bodyP('Quedamos disponibles para cualquier pregunta o aclaración adicional. Será un gusto colaborar contigo y convertirnos en un socio estratégico para esta búsqueda.',{after:180}),
     new D.Paragraph({spacing:{before:0,after:80},children:[new D.TextRun({text:'Atentamente,',font:'Calibri',size:19,color:GRAY})]}),
-    new D.Paragraph({spacing:{before:0,after:60},children:[new D.ImageRun({data:toBuf(PROP_FIRMA),transformation:{width:172,height:32},type:'jpg',altText:{title:'Firma',description:'Firma',name:'firma'}})]}),
+    new D.Paragraph({spacing:{before:0,after:60},children:[new D.ImageRun({data:toBuf(PROP_FIRMA),transformation:{width:172,height:32},type:'jpeg',altText:{title:'Firma',description:'Firma',name:'firma'}})]}),
     new D.Paragraph({spacing:{before:0,after:28},children:[new D.TextRun({text:'Leslie Cooper',font:'Calibri',size:19,bold:true,color:GRAY})]}),
     new D.Paragraph({spacing:{before:0,after:0},children:[new D.TextRun({text:'HK Human Capital',font:'Calibri',size:19,color:GRAY})]}),
   ]}]});
