@@ -4,3 +4,6 @@ node_modules/
 server.log
 .env
 .env.local
+
+.vercel
+.env*
