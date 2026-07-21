@@ -9696,7 +9696,7 @@ function _renderPropLogos() {
       <div style="display:flex;flex-wrap:wrap;gap:8px">
         ${groups[sector].map(l => `
           <label onchange="_updateLogosPreview()" style="display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;min-width:80px;max-width:110px">
-            <input type="checkbox" class="prop-logo-check" value="${l.id}" checked style="accent-color:var(--orange)">
+            <input type="checkbox" class="prop-logo-check" value="${l.id}" style="accent-color:var(--orange)">
             <img src="${l.foto}" style="max-height:30px;max-width:80px;object-fit:contain" alt="${l.nombre}">
             <span style="font-size:9px;color:#94a3b8;text-align:center;word-break:break-word;max-width:80px">${l.nombre}</span>
           </label>`).join('')}
@@ -9867,9 +9867,9 @@ function _buildPropDocx({tratamiento,nombre,cargo,empresa,fecha,cargoBuscado,exp
     new D.Paragraph({spacing:{before:180,after:0},children:[new D.TextRun('')]}),
     secHdr('METODOLOGÍA'),
     ...['Definición del desafío y del perfil del cargo.','Diseño de la estrategia de búsqueda.','Executive Search y mapeo de mercado.','Entrevistas, referencias y evaluación de finalistas.','Presentación de candidatos y acompañamiento hasta la contratación.'].map((t,i)=>new D.Paragraph({spacing:{before:50,after:50},indent:{left:360},children:[new D.TextRun({text:(i+1)+'.  ',font:'Calibri',size:19,bold:true,color:ORANGE}),new D.TextRun({text:t,font:'Calibri',size:19,color:GRAY})]})),
-    new D.Paragraph({spacing:{before:140,after:140},children:[new D.ImageRun({data:toBuf(PROP_METOD_IMG),transformation:{width:575,height:177},type:'png',altText:{title:'Metodología',description:'Diagrama',name:'metodologia'}})]}),
     secHdr('PLAZOS'),
-    bodyP('Los plazos habituales de un proceso de búsqueda y selección de ejecutivos son los siguientes (días hábiles):',{after:80}),
+    bodyP('Los plazos habituales de un proceso de búsqueda y selección de ejecutivos son los siguientes (días hábiles):',{after:100}),
+    new D.Paragraph({spacing:{before:0,after:120},children:[new D.ImageRun({data:toBuf(PROP_METOD_IMG),transformation:{width:575,height:177},type:'png',altText:{title:'Plazos',description:'Diagrama de plazos',name:'plazos'}})]}),
     bodyP('Nuestro compromiso es la entrega del Short List de candidatos (3 a 5 ejecutivos) al día 25 hábil desde la aceptación del perfil. Las etapas posteriores están sujetas a la disponibilidad del cliente y de los candidatos.',{after:200}),
     secHdr('CONDICIONES COMERCIALES'),
     bodyP('Nuestro honorario profesional para la búsqueda de un ejecutivo es de 2 rentas brutas mensuales más IVA, calculadas sobre la base de la renta bruta anual. Se define como renta bruta anual toda remuneración bruta que percibe el empleado durante un período de 12 meses, incluidos bonos variables, participación de utilidades, stock options, etcétera.',{after:80}),
