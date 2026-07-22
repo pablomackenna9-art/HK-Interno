@@ -7158,9 +7158,20 @@ function _updateCliSectorPreview() {
     preview.innerHTML = '<span style="font-size:11px;color:#94a3b8">Ningún sector seleccionado</span>';
   } else {
     preview.innerHTML = _cliSectoresSelected.map(s =>
-      `<span style="font-size:11px;background:#fff7ed;color:var(--orange);border:1px solid #fed7aa;border-radius:4px;padding:2px 8px;display:inline-block">${s}</span>`
+      `<span style="font-size:11px;background:#fff7ed;color:var(--orange);border:1px solid #fed7aa;border-radius:4px;padding:2px 6px;display:inline-flex;align-items:center;gap:4px">${s}<button onclick="_removeCliSector(this)" data-sector="${s}" style="background:none;border:none;color:var(--orange);cursor:pointer;font-size:14px;line-height:1;padding:0;margin-left:2px;opacity:.7" title="Eliminar">×</button></span>`
     ).join('');
   }
+}
+
+function _removeCliSector(btn) {
+  const s = btn.getAttribute('data-sector');
+  _cliSectoresSelected = _cliSectoresSelected.filter(x => x !== s);
+  const panel = document.getElementById('cli-sector-panel');
+  if (panel && panel.style.display !== 'none') {
+    const cb = [...panel.querySelectorAll('input[type=checkbox]')].find(c => c.value === s);
+    if (cb) cb.checked = false;
+  }
+  _updateCliSectorPreview();
 }
 
 async function saveCliSector() {
