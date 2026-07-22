@@ -9702,7 +9702,7 @@ function _renderPropLogos() {
     const nombre = info.nombre || rawId;
     const sector = info.sector || cliDataMap[info.nombre || ''] || cliDataMap[rawId] || '';
     const uid    = 'cli_' + rawId;
-    if (!cliLogos.find(x => x.id === uid))
+    if (!cliLogos.find(x => x.nombre.toLowerCase() === nombre.toLowerCase()))
       cliLogos.push({ id: uid, nombre, foto, sector });
   }
   const customLogos = propuestaLogos.filter(l => !cliLogos.find(c => c.id === l.id))
