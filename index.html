@@ -7122,6 +7122,8 @@ const SECTORES_LIST = [
   'Educación',
   'Turismo, Hotelería y Entretenimiento',
   'Fondos de Inversión, Private Equity y Holding Empresariales',
+  'Sector Automotriz',
+  'Otros',
 ];
 
 function toggleCliSectorPanel() {
@@ -7133,7 +7135,14 @@ function toggleCliSectorPanel() {
       `<label style="display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer;border-radius:5px;font-size:12px;color:#1e293b">
         <input type="checkbox" value="${s}" ${_cliSectoresSelected.includes(s)?'checked':''} onchange="_onCliSectorChange(this)" style="accent-color:var(--orange);width:14px;height:14px;flex-shrink:0">
         ${s}
-      </label>`).join('');
+      </label>`).join('')
+    + `<div style="display:flex;gap:6px;padding:6px 8px;border-top:1px solid #e2e8f0;margin-top:4px">
+        <input id="cli-sector-custom" type="text" placeholder="Agregar sector personalizado..." 
+          style="flex:1;padding:5px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px;font-family:inherit;color:#1e293b;background:#fff;outline:none"
+          onkeydown="if(event.key==='Enter'){_addCliSectorCustom();event.preventDefault()}">
+        <button onclick="_addCliSectorCustom()" 
+          style="padding:5px 10px;background:var(--orange);border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">+</button>
+      </div>`;
     panel.style.display = '';
     if (btn) btn.textContent = 'Cerrar ▲';
   } else {
@@ -7161,6 +7170,18 @@ function _updateCliSectorPreview() {
       `<span style="font-size:11px;background:#fff7ed;color:var(--orange);border:1px solid #fed7aa;border-radius:4px;padding:2px 6px;display:inline-flex;align-items:center;gap:4px">${s}<button onclick="_removeCliSector(this)" data-sector="${s}" style="background:none;border:none;color:var(--orange);cursor:pointer;font-size:14px;line-height:1;padding:0;margin-left:2px;opacity:.7" title="Eliminar">×</button></span>`
     ).join('');
   }
+}
+
+function _addCliSectorCustom() {
+  const input = document.getElementById('cli-sector-custom');
+  if (!input) return;
+  const val = input.value.trim();
+  if (!val) return;
+  if (!_cliSectoresSelected.includes(val)) {
+    _cliSectoresSelected.push(val);
+    _updateCliSectorPreview();
+  }
+  input.value = "";
 }
 
 function _removeCliSector(btn) {
