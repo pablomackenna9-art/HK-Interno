@@ -9699,8 +9699,8 @@ function _renderPropLogos() {
     const foto  = localStorage.getItem(k);
     if (!foto) continue;
     const info   = cliInfoMap[rawId] || cliInfoMap[parseInt(rawId)] || {};
-    const nombre = info.nombre || 'Cliente';
-    const sector = info.sector || cliDataMap[nombre] || '';
+    const nombre = info.nombre || rawId;
+    const sector = info.sector || cliDataMap[info.nombre || ''] || cliDataMap[rawId] || '';
     const uid    = 'cli_' + rawId;
     if (!cliLogos.find(x => x.id === uid))
       cliLogos.push({ id: uid, nombre, foto, sector });
@@ -9845,21 +9845,26 @@ function _buildPropDocx({tratamiento,nombre,cargo,empresa,fecha,cargoBuscado,exp
   const statCell=(num,lbl)=>new D.TableCell({width:{size:2426,type:D.WidthType.DXA},shading:{fill:BGRAY,type:D.ShadingType.CLEAR},margins:{top:120,bottom:120,left:80,right:80},borders:{top:nb,left:nb,bottom:nb,right:nb},children:[new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{before:0,after:40},children:[new D.TextRun({text:num,font:'Calibri',size:30,bold:true,color:ORANGE})]}),new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{before:0,after:0},children:[new D.TextRun({text:lbl,font:'Calibri',size:16,color:GRAY})]})]});
   const statsTable=new D.Table({width:{size:9706,type:D.WidthType.DXA},rows:[new D.TableRow({children:[statCell('+20 años','de experiencia en Executive Search'),statCell('2007','miembros de InterSearch Worldwide'),statCell('12 meses','de garantía sobre cada búsqueda'),statCell('50 países','de cobertura a través de nuestra red')]})]});
   const equipoRows=equipoSeleccionado.map(m=>{
-    const fW=m.foto?(m.ar>1?200:155):0; const fH=m.foto?Math.round(fW/m.ar):0;
+    // Fixed photo size: 1.81cm wide x 1.83cm tall (61 x 62 docx units)
+    const PHOTO_W=61, PHOTO_H=62;
     const imgT=m.foto?(m.foto.includes('data:image/png')?'png':'jpeg'):'jpeg';
     const fotoChildren=m.foto
-      ?[new D.ImageRun({data:toBuf(m.foto),transformation:{width:fW,height:fH},type:imgT,altText:{title:m.nombre,description:m.nombre,name:m.nombre}})]
-      :[new D.TextRun({text:m.nombre.split(' ').map(w=>w[0]).slice(0,2).join(''),font:'Calibri',size:28,bold:true,color:ORANGE})];
+      ?[new D.ImageRun({data:toBuf(m.foto),transformation:{width:PHOTO_W,height:PHOTO_H},type:imgT})]
+      :[new D.TextRun({text:m.nombre.split(' ').map(w=>w[0]).slice(0,2).join(''),font:'Calibri',size:22,bold:true,color:ORANGE})];
     return new D.TableRow({children:[
-      new D.TableCell({width:{size:2200,type:D.WidthType.DXA},margins:{top:80,bottom:80,left:0,right:100},borders:{top:nb,left:nb,bottom:lb,right:nb},children:[
-        new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{before:0,after:40},children:fotoChildren}),
-        new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{before:0,after:20},children:[new D.TextRun({text:m.nombre,font:'Calibri',size:17,bold:true,color:GRAY})]}),
-        new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{before:0,after:0},children:[new D.TextRun({text:m.cargo,font:'Calibri',size:16,color:GRAY,italics:true})]}),
+      new D.TableCell({width:{size:1100,type:D.WidthType.DXA},margins:{top:80,bottom:80,left:0,right:80},borders:{top:nb,left:nb,bottom:lb,right:nb},verticalAlign:D.VerticalAlign.CENTER,children:[
+        new D.Paragraph({alignment:D.AlignmentType.CENTER,spacing:{before:0,after:0},children:fotoChildren}),
       ]}),
-      new D.TableCell({width:{size:7506,type:D.WidthType.DXA},margins:{top:80,bottom:80,left:120,right:0},borders:{top:nb,left:nb,bottom:lb,right:nb},verticalAlign:D.VerticalAlign.CENTER,children:[new D.Paragraph({alignment:D.AlignmentType.BOTH,children:[new D.TextRun({text:m.desc,font:'Calibri',size:19,color:GRAY})]})]})
+      new D.TableCell({width:{size:2400,type:D.WidthType.DXA},margins:{top:80,bottom:80,left:80,right:80},borders:{top:nb,left:nb,bottom:lb,right:nb},verticalAlign:D.VerticalAlign.CENTER,children:[
+        new D.Paragraph({spacing:{before:0,after:30},children:[new D.TextRun({text:m.nombre,font:'Calibri',size:19,bold:true,color:GRAY})]}),
+        new D.Paragraph({spacing:{before:0,after:0},children:[new D.TextRun({text:m.cargo,font:'Calibri',size:17,color:'E8611C',italics:true})]}),
+      ]}),
+      new D.TableCell({width:{size:6206,type:D.WidthType.DXA},margins:{top:80,bottom:80,left:100,right:0},borders:{top:nb,left:nb,bottom:lb,right:nb},verticalAlign:D.VerticalAlign.CENTER,children:[
+        new D.Paragraph({alignment:D.AlignmentType.BOTH,spacing:{before:0,after:0},children:[new D.TextRun({text:m.desc,font:'Calibri',size:19,color:GRAY})]}),
+      ]}),
     ]});
   });
-  const equipoTbl=equipoRows.length?new D.Table({width:{size:9706,type:D.WidthType.DXA},rows:equipoRows}):bodyP('');
+  const equipoTbl=equipoRows.length?new D.Table({width:{size:9706,type:D.WidthType.DXA},columnWidths:[1100,2400,6206],rows:equipoRows}):bodyP('');
   const logosChildren=[];
   logosSeleccionados.forEach((l,i)=>{
     if(!l||!l.foto) return;
