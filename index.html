@@ -1448,30 +1448,23 @@
     <button onclick="closeCli()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#64748b;padding:4px">✕</button>
   </div>
 
-  <!-- Sector field (visible to all) -->
-  <div style="background:#fff;border-radius:12px;padding:12px 16px;margin-bottom:12px;border:1px solid #d1dae6;display:flex;align-items:center;gap:10px">
-    <span style="font-size:11px;font-weight:700;color:var(--orange);letter-spacing:.5px;text-transform:uppercase;white-space:nowrap">Sector</span>
-    <select id="cli-c-sector"
-      style="flex:1;padding:6px 10px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:7px;font-size:13px;font-family:inherit;color:#1e293b;outline:none;cursor:pointer">
-      <option value="">Seleccionar sector...</option>
-      <option value="Minería y Metales">Minería y Metales</option>
-      <option value="Energía, Utilities y Recursos Naturales">Energía, Utilities y Recursos Naturales</option>
-      <option value="Servicios Financieros">Servicios Financieros</option>
-      <option value="Retail, Consumo Masivo y E-commerce">Retail, Consumo Masivo y E-commerce</option>
-      <option value="Industrial, Manufactura y Producción">Industrial, Manufactura y Producción</option>
-      <option value="Alimentos, Bebidas y Agroindustria">Alimentos, Bebidas y Agroindustria</option>
-      <option value="Salud, Farmacéutica y Dispositivos Médicos">Salud, Farmacéutica y Dispositivos Médicos</option>
-      <option value="Tecnología, Software y Telecomunicaciones">Tecnología, Software y Telecomunicaciones</option>
-      <option value="Construcción, Ingeniería e Infraestructura">Construcción, Ingeniería e Infraestructura</option>
-      <option value="Inmobiliario y Real Estate">Inmobiliario y Real Estate</option>
-      <option value="Logística, Transporte y Supply Chain">Logística, Transporte y Supply Chain</option>
-      <option value="Servicios Profesionales y Consultoría">Servicios Profesionales y Consultoría</option>
-      <option value="Educación">Educación</option>
-      <option value="Turismo, Hotelería y Entretenimiento">Turismo, Hotelería y Entretenimiento</option>
-      <option value="Fondos de Inversión, Private Equity y Holding Empresariales">Fondos de Inversión, Private Equity y Holding Empresariales</option>
-    </select>
-    <button onclick="saveCliSector()" style="padding:6px 14px;background:var(--orange);border:none;border-radius:7px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">Guardar</button>
-    <span id="cli-sector-saved" style="display:none;font-size:11px;color:#22c55e">✓</span>
+  <!-- Sector field multi-select -->
+  <div style="background:#fff;border-radius:12px;padding:12px 16px;margin-bottom:12px;border:1px solid #d1dae6">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <span style="font-size:11px;font-weight:700;color:var(--orange);letter-spacing:.5px;text-transform:uppercase">Sector</span>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="saveCliSector()" style="padding:4px 12px;background:var(--orange);border:none;border-radius:6px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">Guardar</button>
+        <span id="cli-sector-saved" style="display:none;font-size:11px;color:#22c55e">✓</span>
+      </div>
+    </div>
+    <div id="cli-sector-preview" style="display:flex;flex-wrap:wrap;gap:4px;min-height:22px;margin-bottom:8px">
+      <span style="font-size:11px;color:#94a3b8">Ningún sector seleccionado</span>
+    </div>
+    <button type="button" id="cli-sector-toggle" onclick="toggleCliSectorPanel()"
+      style="width:100%;padding:7px 12px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:7px;font-size:12px;color:#64748b;cursor:pointer;font-family:inherit;text-align:left">
+      Seleccionar ▼
+    </button>
+    <div id="cli-sector-panel" style="display:none;margin-top:6px;background:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;padding:8px;max-height:200px;overflow-y:auto"></div>
   </div>
 
   <!-- Contact info -->
@@ -2834,7 +2827,7 @@ function renderInforme() {
           <button class="del-btn" onclick="event.stopPropagation();informeDelCliente(${c.id})">✕</button>
           ${_iAvatar}
           <div style="font-weight:700;font-size:15px;margin-bottom:2px">${c.cliente}</div>
-          <div style="font-size:12px;color:#64748b;margin-bottom:12px">${c.industria||''}</div>
+          <div style="font-size:12px;color:#64748b;margin-bottom:12px">${(c.industria||'').split('|').join(', ')}</div>
           <span class="badge badge-blue">${c.procesos.length} proceso${c.procesos.length!==1?'s':''}</span>
         </div>`; }),
       `<div class="add-card" onclick="informeAddCliente()"><div style="font-size:28px">+</div><div style="font-size:13px">Nuevo Cliente</div></div>`
@@ -4820,7 +4813,7 @@ function renderPres() {
         <button class="del-btn" onclick="event.stopPropagation();presDelCliente(${c.id})">✕</button>
         ${avatarHTML}
         <div style="font-weight:700;font-size:15px;margin-bottom:2px">${c.cliente}</div>
-        <div style="font-size:12px;color:#64748b;margin-bottom:12px">${c.industria||''}</div>
+        <div style="font-size:12px;color:#64748b;margin-bottom:12px">${(c.industria||'').split('|').join(', ')}</div>
         <span class="badge badge-blue">${c.procesos.length} proceso${c.procesos.length!==1?'s':''}</span>
       </div>`;
     }),
@@ -6817,6 +6810,7 @@ function renderDashboard() {
 // CLIENTES
 // ════════════════════════════════════════════
 let cliCurrentEmpresa = null;
+let _cliSectoresSelected = [];
 
 function getClientesData() {
   const all = getProcData();
@@ -6964,7 +6958,7 @@ function renderClientesList() {
         ${avatarHTML}
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.empresa}</div>
-          ${c.industria ? `<div style="font-size:10px;color:var(--orange);margin-top:1px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c.industria}</div>` : ''}
+          ${c.industria ? `<div style="font-size:10px;color:var(--orange);margin-top:1px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${(c.industria||'').split('|')[0]}</div>` : ''}
           ${currentUser?.rol==='Administrador' && hasContact ? `<div style="font-size:11px;color:#64748b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${contacto.nombre||''}${contacto.cargo?' · '+contacto.cargo:''}</div>${contacto.contraparte?`<div style="font-size:10px;color:#475569;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">↔ ${contacto.contraparte}</div>`:''}` : ''}
         </div>
       </div>
@@ -7028,8 +7022,12 @@ function openCliente(empresa) {
   document.getElementById('cli-panel-counts').textContent = `${data.procesos.length} procesos · ${activos} activos`;
 
   // Fill contact fields
-  const _sectorEl = document.getElementById('cli-c-sector');
-  if (_sectorEl) _sectorEl.value = data.industria || '';
+  _cliSectoresSelected = (data.industria || '').split('|').filter(Boolean);
+  _updateCliSectorPreview();
+  const _sp = document.getElementById('cli-sector-panel');
+  const _sb = document.getElementById('cli-sector-toggle');
+  if (_sp) { _sp.style.display = 'none'; _sp.innerHTML = ''; }
+  if (_sb) { _sb.textContent = 'Seleccionar ▼'; }
   document.getElementById('cli-sector-saved').style.display = 'none';
   document.getElementById('cli-c-nombre').value = c.nombre || '';
   document.getElementById('cli-c-cargo').value = c.cargo || '';
@@ -7108,9 +7106,66 @@ async function saveCliContact() {
   renderClientesList(); // refresh cards
 }
 
+const SECTORES_LIST = [
+  'Minería y Metales',
+  'Energía, Utilities y Recursos Naturales',
+  'Servicios Financieros',
+  'Retail, Consumo Masivo y E-commerce',
+  'Industrial, Manufactura y Producción',
+  'Alimentos, Bebidas y Agroindustria',
+  'Salud, Farmacéutica y Dispositivos Médicos',
+  'Tecnología, Software y Telecomunicaciones',
+  'Construcción, Ingeniería e Infraestructura',
+  'Inmobiliario y Real Estate',
+  'Logística, Transporte y Supply Chain',
+  'Servicios Profesionales y Consultoría',
+  'Educación',
+  'Turismo, Hotelería y Entretenimiento',
+  'Fondos de Inversión, Private Equity y Holding Empresariales',
+];
+
+function toggleCliSectorPanel() {
+  const panel = document.getElementById('cli-sector-panel');
+  const btn   = document.getElementById('cli-sector-toggle');
+  if (!panel) return;
+  if (panel.style.display === 'none') {
+    panel.innerHTML = SECTORES_LIST.map(s =>
+      `<label style="display:flex;align-items:center;gap:8px;padding:5px 8px;cursor:pointer;border-radius:5px;font-size:12px;color:#1e293b">
+        <input type="checkbox" value="${s}" ${_cliSectoresSelected.includes(s)?'checked':''} onchange="_onCliSectorChange(this)" style="accent-color:var(--orange);width:14px;height:14px;flex-shrink:0">
+        ${s}
+      </label>`).join('');
+    panel.style.display = '';
+    if (btn) btn.textContent = 'Cerrar ▲';
+  } else {
+    panel.style.display = 'none';
+    if (btn) btn.textContent = 'Seleccionar ▼';
+  }
+}
+
+function _onCliSectorChange(cb) {
+  if (cb.checked) {
+    if (!_cliSectoresSelected.includes(cb.value)) _cliSectoresSelected.push(cb.value);
+  } else {
+    _cliSectoresSelected = _cliSectoresSelected.filter(s => s !== cb.value);
+  }
+  _updateCliSectorPreview();
+}
+
+function _updateCliSectorPreview() {
+  const preview = document.getElementById('cli-sector-preview');
+  if (!preview) return;
+  if (!_cliSectoresSelected.length) {
+    preview.innerHTML = '<span style="font-size:11px;color:#94a3b8">Ningún sector seleccionado</span>';
+  } else {
+    preview.innerHTML = _cliSectoresSelected.map(s =>
+      `<span style="font-size:11px;background:#fff7ed;color:var(--orange);border:1px solid #fed7aa;border-radius:4px;padding:2px 8px;display:inline-block">${s}</span>`
+    ).join('');
+  }
+}
+
 async function saveCliSector() {
   if (!cliCurrentEmpresa) return;
-  const sector = (document.getElementById('cli-c-sector').value || '').trim();
+  const sector = _cliSectoresSelected.join('|');
   const existing = cliExtra.find(e => e.empresa === cliCurrentEmpresa);
   if (existing) {
     existing.industria = sector;
@@ -9705,7 +9760,7 @@ function _renderPropLogos() {
   const _pd = (typeof presData !== 'undefined') ? presData : [];
   // Build id -> {nombre, sector}
   const cliInfoMap = {};
-  _pd.forEach(c => { if (c.id) cliInfoMap[String(c.id)] = { nombre: c.cliente || 'Cliente', sector: c.industria || '' }; });
+  _pd.forEach(c => { if (c.id) cliInfoMap[String(c.id)] = { nombre: c.cliente || 'Cliente', sector: (c.industria||'').split('|')[0] }; });
   // Also get sector from getClientesData (matches by empresa name)
   let cliDataMap = {};
   try { getClientesData().forEach(c => { cliDataMap[c.empresa] = c.industria || ''; }); } catch(e) {}
@@ -9721,7 +9776,8 @@ function _renderPropLogos() {
     if (!foto) continue;
     const info   = cliInfoMap[rawId] || cliInfoMap[parseInt(rawId)] || {};
     const nombre = info.nombre || rawId;
-    const sector = info.sector || cliDataMap[info.nombre || ''] || cliDataMap[rawId] || '';
+    const sectorRaw = info.sector || cliDataMap[info.nombre || ''] || cliDataMap[rawId] || '';
+    const sector = sectorRaw.split('|')[0] || '';
     const uid    = 'cli_' + rawId;
     if (!cliLogos.find(x => x.nombre.toLowerCase() === nombre.toLowerCase()))
       cliLogos.push({ id: uid, nombre, foto, sector });
