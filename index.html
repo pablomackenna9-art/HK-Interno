@@ -8974,7 +8974,23 @@ function vacTab(tab) {
   renderVacaciones();
 }
 
+async function vacAutoMarcarTomadas() {
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  let changed = false;
+  for (const v of vacData) {
+    if (v.estado === 'aprobado' && v.fechaFin) {
+      const fin = new Date(v.fechaFin + 'T12:00:00');
+      if (fin < hoy) { v.estado = 'tomado'; changed = true; }
+    }
+  }
+  if (changed) {
+    await dbSave('vacData', vacData);
+    showToast('Vacaciones completadas marcadas como tomadas');
+  }
+}
+
 function renderVacaciones() {
+  vacAutoMarcarTomadas();
   const isAdmin = currentUser?.rol === 'Administrador';
   // Mostrar tab de resumen solo a admins
   const resTab = document.getElementById('vac-tab-resumen');
@@ -9137,8 +9153,8 @@ function vacRenderResumen(el, sub) {
           </div>
           <div style="font-size:11px;color:#64748b;margin-left:16px">${u.rol||''}</div>
         </td>
-        <td style="padding:10px 14px;text-align:center;font-size:12px;color:#94a3b8">
-          ${u.fechaIngreso || `<button onclick="vacSetIngreso('${u.email}')" style="background:rgba(249,115,22,0.1);color:var(--orange);border:none;border-radius:6px;padding:3px 8px;cursor:pointer;font-size:11px">+ Agregar</button>`}
+        <td style="padding:10px 14px;text-align:center">
+          <button onclick="vacSetIngreso('${u.email}')" style="background:rgba(249,115,22,0.1);color:var(--orange);border:1px dashed rgba(249,115,22,0.4);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:12px;font-family:inherit">${u.fechaIngreso || '+ Agregar'}</button>
         </td>
         <td style="padding:10px 14px;text-align:center;font-size:15px;font-weight:700;color:#f97316">${acum.toFixed(1)}</td>
         <td style="padding:10px 14px;text-align:center;font-size:15px;font-weight:700;color:#ef4444">${usad.toFixed(1)}</td>
@@ -9173,7 +9189,7 @@ function vacCard(v, showUser, isAdmin) {
 }
 
 // ── Fecha de ingreso (admin) ───────────────────────────────────────────────
-async function vacSetIngreso(email) {
+async async function vacSetIngreso(email) {
   const fecha = prompt('Fecha de ingreso de ' + email + ' (AAAA-MM-DD):');
   if (!fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return;
   const u = getAllUsers().find(x => x.email === email); if (!u) return;
