@@ -9189,7 +9189,7 @@ function vacCard(v, showUser, isAdmin) {
 }
 
 // ── Fecha de ingreso (admin) ───────────────────────────────────────────────
-async async function vacSetIngreso(email) {
+async function vacSetIngreso(email) {
   const fecha = prompt('Fecha de ingreso de ' + email + ' (AAAA-MM-DD):');
   if (!fecha || !/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return;
   const u = getAllUsers().find(x => x.email === email); if (!u) return;
