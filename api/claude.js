@@ -1,7 +1,7 @@
 // Vercel Serverless Function — proxy a Gemini / Groq
 const https = require('https');
 
-const DEFAULT_KEY = 'AIzaSyBnN_SgGKpfXPROzroeQmSLVaRG4TRKOis';
+const DEFAULT_KEY = process.env.GEMINI_API_KEY || '';
 
 function sendJSON(res, status, obj) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -32,11 +32,17 @@ async function proxyGemini(apiKey, messages, maxTokens, res) {
 
   for (const model of models) {
     try {
+      const isOAuth = apiKey.startsWith('AQ.');
+      const path = isOAuth
+        ? `/v1beta/models/${model}:generateContent`
+        : `/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const reqHeaders = { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(googleBody) };
+      if (isOAuth) reqHeaders['Authorization'] = `Bearer ${apiKey}`;
       const opts = {
         hostname: 'generativelanguage.googleapis.com',
-        path: `/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+        path,
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(googleBody) }
+        headers: reqHeaders
       };
       const g = await httpsPost(opts, googleBody);
       if (g.error) {
