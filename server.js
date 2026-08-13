@@ -8,7 +8,10 @@ const PORT = 5000;
 const DIR = __dirname;
 
 // Clave por defecto (Google AI Studio). Se sobreescribe si el frontend envía x-api-key.
-const DEFAULT_KEY = 'AIzaSyBnN_SgGKpfXPROzroeQmSLVaRG4TRKOis';
+// Solo para desarrollo local: crea un archivo .env con GEMINI_API_KEY=tu_clave
+// y cárgalo antes de iniciar (ej. con `node -r dotenv/config server.js`), o
+// exporta la variable en tu shell. Nunca hardcodees la clave aquí.
+const DEFAULT_KEY = process.env.GEMINI_API_KEY || '';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
