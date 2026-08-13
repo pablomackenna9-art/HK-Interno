@@ -1,8 +1,7 @@
 {
   "version": 2,
-  "routes": [
-    { "src": "/api/claude",    "dest": "/api/claude.js" },
-    { "src": "/api/noa-data", "dest": "/api/noa-data.js" },
-    { "src": "/(.*)",          "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
