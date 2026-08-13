@@ -3,6 +3,8 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+let createSupabaseClient = null;
+try { ({ createClient: createSupabaseClient } = require('@supabase/supabase-js')); } catch (e) { /* not installed locally, fine */ }
 
 const PORT = 5000;
 const DIR = __dirname;
@@ -154,6 +156,43 @@ http.createServer((req, res) => {
         proxyGemini(apiKey, body, res);
       }
     });
+    return;
+  }
+
+  if (req.url.split('?')[0] === '/api/noa-data' && (req.method === 'GET' || req.method === 'OPTIONS')) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-noa-token');
+    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+
+    const token = (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '') || req.headers['x-noa-token'];
+    if (!token || token !== process.env.NOA_ACCESS_TOKEN) {
+      return sendJSON(res, 401, { error: 'No autorizado' });
+    }
+    if (!createSupabaseClient || !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return sendJSON(res, 500, { error: 'faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY o el paquete @supabase/supabase-js' });
+    }
+
+    const keyMap = {
+      candidatos: 'candidatoExpData', informes: 'informeData', referencias: 'refData',
+      clientes_contactos: 'cliContacts', clientes_extra: 'cliExtra', procesos: 'procOverrides',
+      procesos_custom: 'procCustom', descripciones_cargo: 'descData', objetivos: 'objData',
+      proyectos: 'proyData', vacaciones: 'vacData', facturas: 'facturaNotifs',
+    };
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const keysParam = url.searchParams.get('keys') || url.searchParams.get('resource');
+    const requested = Object.keys(keyMap).filter((k) => !keysParam || keysParam.split(',').includes(k));
+
+    const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    supabase.from('hk_store').select('key,value').in('key', requested.map((k) => keyMap[k]))
+      .then(({ data, error }) => {
+        if (error) return sendJSON(res, 500, { error: error.message });
+        const byStoreKey = Object.fromEntries((data || []).map((row) => [row.key, row.value]));
+        const out = {};
+        for (const label of requested) out[label] = byStoreKey[keyMap[label]] ?? null;
+        sendJSON(res, 200, out);
+      })
+      .catch((e) => sendJSON(res, 500, { error: e.message }));
     return;
   }
 
