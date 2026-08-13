@@ -3342,9 +3342,14 @@ function _geminiSleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 // Llamada individual a un modelo específico — retorna texto o lanza error clasificado
 async function _geminiCall(model, parts, maxTokens, temperature) {
   const apiKey = localStorage.getItem('hk_api_key');
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-    { method:'POST', headers:{'Content-Type':'application/json'},
+  const isOAuth = apiKey && apiKey.startsWith('AQ.');
+  const url = isOAuth
+    ? `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
+    : `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const hdrs = {'Content-Type':'application/json'};
+  if (isOAuth) hdrs['Authorization'] = `Bearer ${apiKey}`;
+  const res = await fetch(url,
+    { method:'POST', headers:hdrs,
       body: JSON.stringify({ contents:[{role:'user',parts}], generationConfig:{maxOutputTokens:maxTokens,temperature} }) }
   );
   const data = await res.json();
