@@ -173,23 +173,24 @@ http.createServer((req, res) => {
       return sendJSON(res, 500, { error: 'faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY o el paquete @supabase/supabase-js' });
     }
 
-    const keyMap = {
-      candidatos: 'candidatoExpData', informes: 'informeData', referencias: 'refData',
-      clientes_contactos: 'cliContacts', clientes_extra: 'cliExtra', procesos: 'procOverrides',
-      procesos_custom: 'procCustom', descripciones_cargo: 'descData', objetivos: 'objData',
-      proyectos: 'proyData', vacaciones: 'vacData', facturas: 'facturaNotifs',
-    };
+    // No hardcoded table list, no renaming — this returns each hk_store row
+    // under its own real key (procOverrides, cliExtra, candidatoExpData,
+    // etc.), exactly as it's named in Supabase. That way agent instructions
+    // written against the real table names always match what the agent
+    // actually receives, and a table added later shows up automatically
+    // without touching this file.
     const url = new URL(req.url, `http://${req.headers.host}`);
     const keysParam = url.searchParams.get('keys') || url.searchParams.get('resource');
-    const requested = Object.keys(keyMap).filter((k) => !keysParam || keysParam.split(',').includes(k));
+    const requestedKeys = keysParam ? keysParam.split(',').map((k) => k.trim()).filter(Boolean) : null;
 
     const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-    supabase.from('hk_store').select('key,value').in('key', requested.map((k) => keyMap[k]))
+    let query = supabase.from('hk_store').select('key,value');
+    if (requestedKeys) query = query.in('key', requestedKeys);
+    query
       .then(({ data, error }) => {
         if (error) return sendJSON(res, 500, { error: error.message });
-        const byStoreKey = Object.fromEntries((data || []).map((row) => [row.key, row.value]));
         const out = {};
-        for (const label of requested) out[label] = byStoreKey[keyMap[label]] ?? null;
+        for (const row of data || []) out[row.key] = row.value;
         sendJSON(res, 200, out);
       })
       .catch((e) => sendJSON(res, 500, { error: e.message }));
