@@ -75,12 +75,21 @@ async function proxyGroq(apiKey, messages, maxTokens, res) {
 }
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const allowedOrigin = 'https://hk-interno.vercel.app';
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-api-key, x-hk-token');
 
   if (req.method === 'OPTIONS') { res.status(204).end(); return; }
   if (req.method !== 'POST')    { res.status(405).end(); return; }
+
+  // Verificar token de autenticación
+  const appSecret = process.env.APP_SECRET;
+  const token = req.headers['x-hk-token'];
+  if (appSecret && token !== appSecret) {
+    res.status(401).json({ error: { message: 'No autorizado' } });
+    return;
+  }
 
   const apiKey   = (req.headers['x-api-key'] || DEFAULT_KEY).trim();
   const body     = req.body || {};

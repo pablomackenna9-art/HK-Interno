@@ -3343,7 +3343,7 @@ function _geminiSleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 async function _geminiCall(model, parts, maxTokens, temperature) {
   const messages = [{role:'user', content: parts.map(p => p.text||'').join('\n')}];
   const res = await fetch('/api/claude',
-    { method:'POST', headers:{'Content-Type':'application/json'},
+    { method:'POST', headers:{'Content-Type':'application/json','x-hk-token':'hkInterno2025'},
       body: JSON.stringify({ messages, max_tokens: maxTokens }) }
   );
   const data = await res.json();
