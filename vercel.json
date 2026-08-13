@@ -1,7 +1,8 @@
 {
   "version": 2,
   "routes": [
-    { "src": "/api/claude", "dest": "/api/claude.js" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    { "src": "/api/claude",    "dest": "/api/claude.js" },
+    { "src": "/api/noa-data", "dest": "/api/noa-data.js" },
+    { "src": "/(.*)",          "dest": "/index.html" }
   ]
 }

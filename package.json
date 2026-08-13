@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "@supabase/supabase-js": "^2.45.0"
   }
 }
