@@ -3,6 +3,8 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+let createSupabaseClient = null;
+try { ({ createClient: createSupabaseClient } = require('@supabase/supabase-js')); } catch (e) { /* not installed locally, fine */ }
 
 const PORT = 5000;
 const DIR = __dirname;
@@ -151,6 +153,44 @@ http.createServer((req, res) => {
         proxyGemini(apiKey, body, res);
       }
     });
+    return;
+  }
+
+  if (req.url.split('?')[0] === '/api/noa-data' && (req.method === 'GET' || req.method === 'OPTIONS')) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-noa-token');
+    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+
+    const token = (req.headers['authorization'] || '').replace(/^Bearer\s+/i, '') || req.headers['x-noa-token'];
+    if (!token || token !== process.env.NOA_ACCESS_TOKEN) {
+      return sendJSON(res, 401, { error: 'No autorizado' });
+    }
+    if (!createSupabaseClient || !process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return sendJSON(res, 500, { error: 'faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY o el paquete @supabase/supabase-js' });
+    }
+
+    const ALLOWED = { candidatos:'expData', clientes:'cliExtra', vacaciones:'vacData', procesos:null };
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    const resource = (url.searchParams.get('resource') || '').trim();
+
+    if (!resource) {
+      sendJSON(res, 200, { recursos: Object.keys(ALLOWED), uso: '/api/noa-data?resource=candidatos' });
+      return;
+    }
+    if (!(resource in ALLOWED)) {
+      sendJSON(res, 400, { error: `Recurso inválido: "${resource}". Usa: ${Object.keys(ALLOWED).join(', ')}` });
+      return;
+    }
+
+    const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+    const storeKey = ALLOWED[resource];
+    supabase.from('hk_store').select('value').eq('key', storeKey).single()
+      .then(({ data, error }) => {
+        if (error && error.code !== 'PGRST116') return sendJSON(res, 500, { error: error.message });
+        sendJSON(res, 200, { resource, data: data?.value ?? null });
+      })
+      .catch((e) => sendJSON(res, 500, { error: e.message }));
     return;
   }
 
