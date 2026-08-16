@@ -8,7 +8,7 @@ const PORT = 5000;
 const DIR = __dirname;
 
 // Clave por defecto (Google AI Studio). Se sobreescribe si el frontend envía x-api-key.
-const DEFAULT_KEY = 'AIzaSyBnN_SgGKpfXPROzroeQmSLVaRG4TRKOis';
+const DEFAULT_KEY = process.env.GEMINI_API_KEY || '';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
