@@ -2517,7 +2517,7 @@ async function dbSave(storeKey, data) {
   const sb = getSB(); if (!sb) { lsSet('hk_local_'+storeKey, JSON.stringify(data)); _dbSaveRefresh(); return; }
   const stripped = storeKey === 'presData' ? stripPhotos(data) : data;
   try { await sb.from('hk_store').upsert({ key: storeKey, value: stripped, updated_at: new Date().toISOString() }); }
-  catch(e) { console.warn('dbSave error', e); }
+  catch(e) { console.error('dbSave error ['+storeKey+']:', e); showToast('⚠ Error guardando datos. Verifica la conexión.'); throw e; }
   lsSet('hk_local_'+storeKey, JSON.stringify(stripped));
   _dbSaveRefresh();
 }
@@ -6675,7 +6675,7 @@ async function addProcNota() {
   const notaBtn = document.querySelector('#mpd-nota-input + button') || document.querySelector('[onclick="addProcNota()"]');
   if (notaBtn) { notaBtn.textContent = '...'; notaBtn.disabled = true; }
   try {
-    const overrides = JSON.parse(localStorage.getItem('hk_proc_overrides')||'{}');
+    const overrides = _memProcOverrides ? Object.assign({}, _memProcOverrides) : JSON.parse(localStorage.getItem('hk_proc_overrides')||'{}');
     if (!overrides[procCurrentId]) overrides[procCurrentId] = {};
     const base  = PROCESOS_BASE.find(x=>x.id===procCurrentId)||{};
     const notas = overrides[procCurrentId].notas || JSON.parse(JSON.stringify(base.notas||[]));
@@ -6807,7 +6807,7 @@ function renderDashboard() {
   // Actividad reciente — TODOS los procesos con comentario, ordenados por timestamp de última modificación
   const actDiv = document.getElementById('dash-activity');
   if (actDiv) {
-    const overrides = JSON.parse(localStorage.getItem('hk_proc_overrides')||'{}');
+    const overrides = _memProcOverrides || JSON.parse(localStorage.getItem('hk_proc_overrides')||'{}');
     // Ordenar todos los procesos por _ts (timestamp de última edición) desc, fallback a inicio desc
     const allSorted = [...data]
       .filter(p => p.comentario)
@@ -7284,8 +7284,7 @@ async function adjuntarArchivo(event) {
   const files = Array.from(event.target.files || []);
   if (!files.length) return;
   const MAX = 5 * 1024 * 1024;
-  const overrides = JSON.parse(localStorage.getItem('hk_proc_overrides') || '{}');
-  const adj = (overrides[procCurrentId]?.adjuntos) || [];
+  const adj = [...((_memProcOverrides?.[procCurrentId]?.adjuntos) || [])];
   let added = 0;
   for (const file of files) {
     if (file.size > MAX) { showToast('⚠ ' + file.name + ' supera 5MB, omitido'); continue; }
@@ -7319,8 +7318,7 @@ function downloadAdjunto(idx) {
 
 async function deleteAdjunto(idx) {
   if (!confirm('¿Eliminar este documento?')) return;
-  const overrides = JSON.parse(localStorage.getItem('hk_proc_overrides') || '{}');
-  const adj = overrides[procCurrentId]?.adjuntos || [];
+  const adj = [...((_memProcOverrides?.[procCurrentId]?.adjuntos) || [])];
   const removed = adj.splice(idx, 1)[0];
   if (removed?.key) localStorage.removeItem(removed.key);
   await saveProcOverride(procCurrentId, { adjuntos: adj });
@@ -7449,8 +7447,8 @@ async function pushLocalToSupabase() {
   const sb = getSB();
   if (!sb) { alert('No hay conexión a Supabase. Configura la API Key primero.'); return; }
   showToast('Subiendo datos a Supabase...', 3000);
-  const overrides = JSON.parse(localStorage.getItem('hk_proc_overrides')||'{}');
-  const custom    = JSON.parse(localStorage.getItem('hk_proc_custom')||'[]');
+  const overrides = _memProcOverrides || JSON.parse(localStorage.getItem('hk_proc_overrides')||'{}');
+  const custom    = _memProcCustom    || JSON.parse(localStorage.getItem('hk_proc_custom')||'[]');
   try {
     const upserts = [];
     if (Object.keys(overrides).length) upserts.push(sb.from('hk_store').upsert({ key: 'procOverrides', value: overrides, updated_at: new Date().toISOString() }));
