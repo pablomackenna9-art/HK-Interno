@@ -5,6 +5,8 @@ const fs = require('fs');
 const path = require('path');
 let createSupabaseClient = null;
 try { ({ createClient: createSupabaseClient } = require('@supabase/supabase-js')); } catch (e) { /* not installed locally, fine */ }
+let PROCESOS_BASE = [];
+try { PROCESOS_BASE = require('./api/procesos-base.json'); } catch (e) { /* not present locally, fine */ }
 
 const PORT = 5000;
 const DIR = __dirname;
@@ -170,6 +172,8 @@ http.createServer((req, res) => {
       return sendJSON(res, 500, { error: 'faltan SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY o el paquete @supabase/supabase-js' });
     }
 
+    // 'procesos' es especial: se fusiona con PROCESOS_BASE + procOverrides
+    // más abajo, igual que en api/noa-data.js — no tiene una key propia.
     const ALLOWED = { candidatos:'expData', clientes:'cliExtra', vacaciones:'vacData', procesos:null };
     const url = new URL(req.url, `http://${req.headers.host}`);
     const resource = (url.searchParams.get('resource') || '').trim();
@@ -184,6 +188,24 @@ http.createServer((req, res) => {
     }
 
     const supabase = createSupabaseClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+    if (resource === 'procesos') {
+      Promise.all([
+        supabase.from('hk_store').select('value').eq('key', 'procOverrides').single(),
+        supabase.from('hk_store').select('value').eq('key', 'procCustom').single(),
+      ]).then(([{ data: ovrRow, error: ovrErr }, { data: custRow, error: custErr }]) => {
+        if ((ovrErr && ovrErr.code !== 'PGRST116') || (custErr && custErr.code !== 'PGRST116')) {
+          return sendJSON(res, 500, { error: (ovrErr || custErr).message });
+        }
+        const overrides = ovrRow?.value || {};
+        const custom = Array.isArray(custRow?.value) ? custRow.value : [];
+        const base = PROCESOS_BASE.map((p) => ({ ...p, ...overrides[p.id] }));
+        const cust = custom.map((p) => ({ ...p, ...overrides[p.id] }));
+        sendJSON(res, 200, { resource, data: [...base, ...cust] });
+      }).catch((e) => sendJSON(res, 500, { error: e.message }));
+      return;
+    }
+
     const storeKey = ALLOWED[resource];
     supabase.from('hk_store').select('value').eq('key', storeKey).single()
       .then(({ data, error }) => {
