@@ -6250,7 +6250,9 @@ async function saveProcCustomDB(custom) {
   _dbSaveRefresh();
 }
 async function saveProcOverride(id, fields) {
-  const overrides = JSON.parse(localStorage.getItem('hk_proc_overrides')||'{}');
+  const overrides = _memProcOverrides
+    ? Object.assign({}, _memProcOverrides)
+    : JSON.parse(localStorage.getItem('hk_proc_overrides')||'{}');
   const prev = overrides[id] || {};
   const oldEtapa = prev.etapa;
   overrides[id] = Object.assign(prev, fields, { _ts: Date.now() });
@@ -6558,7 +6560,9 @@ async function saveProcEdit() {
 
     if (procCurrentId === '__NEW__') {
       // Generate new ID and save to custom list
-      const custom = JSON.parse(localStorage.getItem('hk_proc_custom')||'[]');
+      const custom = _memProcCustom
+        ? [..._memProcCustom]
+        : JSON.parse(localStorage.getItem('hk_proc_custom')||'[]');
       const newNum = Date.now();
       const newId  = 'PN' + newNum.toString().slice(-5);
       const newProc = Object.assign({ id: newId, alerta: 0, notas: [], duracion: 0 }, fields);
