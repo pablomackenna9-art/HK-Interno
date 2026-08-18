@@ -2499,12 +2499,26 @@ function getSB() {
   _sbClient = supabase.createClient(SB_URL, key);
   return _sbClient;
 }
+function lsSet(key, val) {
+  try { lsSet(key, val); } catch(e) {
+    if (e.name === 'QuotaExceededError' || e.code === 22) {
+      // Liberar espacio borrando fotos antiguas
+      const toDelete = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith('hk_photo_') || k.startsWith('hk_cli_photo_') || k.startsWith('hk_pres_photo_'))) toDelete.push(k);
+      }
+      toDelete.forEach(k => localStorage.removeItem(k));
+      try { lsSet(key, val); } catch(e2) { console.warn('lsSet: cuota excedida para', key); }
+    }
+  }
+}
 async function dbSave(storeKey, data) {
-  const sb = getSB(); if (!sb) { localStorage.setItem('hk_local_'+storeKey, JSON.stringify(data)); _dbSaveRefresh(); return; }
+  const sb = getSB(); if (!sb) { lsSet('hk_local_'+storeKey, JSON.stringify(data)); _dbSaveRefresh(); return; }
   const stripped = storeKey === 'presData' ? stripPhotos(data) : data;
   try { await sb.from('hk_store').upsert({ key: storeKey, value: stripped, updated_at: new Date().toISOString() }); }
   catch(e) { console.warn('dbSave error', e); }
-  localStorage.setItem('hk_local_'+storeKey, JSON.stringify(stripped));
+  lsSet('hk_local_'+storeKey, JSON.stringify(stripped));
   _dbSaveRefresh();
 }
 function _dbSaveRefresh() {
@@ -2560,7 +2574,7 @@ async function dbPhotosLoad() {
   try {
     const { data } = await sb.from('hk_store').select('value').eq('key', 'photos').maybeSingle();
     if (data?.value && typeof data.value === 'object') {
-      Object.entries(data.value).forEach(([k, v]) => { if (v) localStorage.setItem(k, v); });
+      Object.entries(data.value).forEach(([k, v]) => { if (v) lsSet(k, v); });
     }
   } catch(e) { console.warn('dbPhotosLoad error', e); }
 }
@@ -2578,7 +2592,7 @@ async function dbPhotosFlush() {
   } catch(e) { console.warn('dbPhotosFlush error', e); }
 }
 function dbPhotoSet(key, val) {
-  localStorage.setItem(key, val);
+  lsSet(key, val);
   clearTimeout(_photoFlushTimer);
   _photoFlushTimer = setTimeout(dbPhotosFlush, 1500);
 }
@@ -2602,13 +2616,13 @@ async function dbLoadAll() {
   if (pres) { presData = reattachPhotos(pres); renderPres(); }
   if (info) { informeData = info; renderInforme(); }
   if (ref)  { refData = _migrateRefData(ref); renderRef(); }
-  if (procOvr)  { localStorage.setItem('hk_proc_overrides', JSON.stringify(procOvr)); }
-  if (procCust) { localStorage.setItem('hk_proc_custom',    JSON.stringify(procCust)); }
+  if (procOvr)  { lsSet('hk_proc_overrides', JSON.stringify(procOvr)); }
+  if (procCust) { lsSet('hk_proc_custom',    JSON.stringify(procCust)); }
   if (actLog)  { activityLog  = Array.isArray(actLog)  ? actLog  : []; }
   if (factNot) { facturaNotifs = Array.isArray(factNot) ? factNot : []; }
   if (cliCont && typeof cliCont === 'object') {
     cliContacts = cliCont;
-    localStorage.setItem('hk_clientes_contacts', JSON.stringify(cliContacts));
+    lsSet('hk_clientes_contacts', JSON.stringify(cliContacts));
   } else {
     const local = localStorage.getItem('hk_clientes_contacts');
     if (local) { try { cliContacts = JSON.parse(local); await dbSave('cliContacts', cliContacts); } catch(e){} }
@@ -3226,9 +3240,9 @@ function addExpItem() {
 function saveApiKey() {
   const key = document.getElementById('apikey-input').value.trim();
   if (!key) { alert('Ingresa tu API Key de Google AI Studio'); return; }
-  localStorage.setItem('hk_api_key', key);
+  lsSet('hk_api_key', key);
   const sbKey = document.getElementById('sb-key-input').value.trim();
-  if (sbKey) { localStorage.setItem('hk_sb_key', sbKey); _sbClient = null; dbLoadAll(); }
+  if (sbKey) { lsSet('hk_sb_key', sbKey); _sbClient = null; dbLoadAll(); }
   closeModal('modal-apikey');
   showToast('Configuración guardada');
   if (window._pendingGenerate) { window._pendingGenerate = false; generarConIA(); }
@@ -3334,7 +3348,7 @@ function checkReadyToGenerate() {
 }
 
 // ─── DIRECT GEMINI CALL ───
-(function(){ localStorage.setItem('hk_api_key','AIzaSyBnN_SgGKpfXPROzroeQmSLVaRG4TRKOis'); })();
+(function(){ lsSet('hk_api_key','AIzaSyBnN_SgGKpfXPROzroeQmSLVaRG4TRKOis'); })();
 
 // Modelos en orden de preferencia
 const _GEMINI_MODELS = [
@@ -6216,14 +6230,14 @@ function getProcData() {
 }
 
 async function saveProcOverridesDB(overrides) {
-  localStorage.setItem('hk_proc_overrides', JSON.stringify(overrides));
-  localStorage.setItem('hk_local_procOverrides', JSON.stringify(overrides));
+  lsSet('hk_proc_overrides', JSON.stringify(overrides));
+  lsSet('hk_local_procOverrides', JSON.stringify(overrides));
   await dbSave('procOverrides', overrides);
   _dbSaveRefresh();
 }
 async function saveProcCustomDB(custom) {
-  localStorage.setItem('hk_proc_custom', JSON.stringify(custom));
-  localStorage.setItem('hk_local_procCustom', JSON.stringify(custom));
+  lsSet('hk_proc_custom', JSON.stringify(custom));
+  lsSet('hk_local_procCustom', JSON.stringify(custom));
   await dbSave('procCustom', custom);
   _dbSaveRefresh();
 }
@@ -6251,8 +6265,8 @@ async function _refreshProcFromDB() {
   const [freshOvr, freshCust] = await Promise.all([
     dbLoad('procOverrides'), dbLoad('procCustom')
   ]);
-  if (freshOvr)  { localStorage.setItem('hk_proc_overrides', JSON.stringify(freshOvr)); }
-  if (freshCust) { localStorage.setItem('hk_proc_custom',    JSON.stringify(freshCust)); }
+  if (freshOvr)  { lsSet('hk_proc_overrides', JSON.stringify(freshOvr)); }
+  if (freshCust) { lsSet('hk_proc_custom',    JSON.stringify(freshCust)); }
 }
 
 function procStatusBadge(s) {
@@ -7103,7 +7117,7 @@ async function saveCliContact() {
     contraparte: document.getElementById('cli-c-contraparte').value,
     notas: document.getElementById('cli-c-notas').value,
   };
-  localStorage.setItem('hk_clientes_contacts', JSON.stringify(cliContacts));
+  lsSet('hk_clientes_contacts', JSON.stringify(cliContacts));
   await dbSave('cliContacts', cliContacts);
   const msg = document.getElementById('cli-saved-msg');
   msg.style.display = 'inline';
@@ -7264,7 +7278,7 @@ async function adjuntarArchivo(event) {
     if (file.size > MAX) { showToast('⚠ ' + file.name + ' supera 5MB, omitido'); continue; }
     const b64 = await _fileToB64(file);
     const key = 'hk_adj_' + procCurrentId + '_' + Date.now();
-    localStorage.setItem(key, b64);
+    lsSet(key, b64);
     adj.push({ name: file.name, key, size: _fmtSize(file.size), fecha: new Date().toLocaleDateString('es-CL') });
     added++;
   }
@@ -7455,7 +7469,7 @@ function importLocalData(event) {
       const data = JSON.parse(e.target.result);
       let count = 0;
       Object.entries(data).forEach(([key, val]) => {
-        if (key.startsWith('hk_')) { localStorage.setItem(key, val); count++; }
+        if (key.startsWith('hk_')) { lsSet(key, val); count++; }
       });
       showToast(count + ' entradas importadas ✓');
       // Recargar vistas con nuevas fotos
@@ -7794,7 +7808,7 @@ async function saveNuevaGestion() {
     showToast('✓ Gestión registrada para ' + empresa);
   }
 
-  localStorage.setItem('hk_clientes_contacts', JSON.stringify(cliContacts));
+  lsSet('hk_clientes_contacts', JSON.stringify(cliContacts));
   await dbSave('cliContacts', cliContacts);
 
   _editingGestion = null;
@@ -7840,7 +7854,7 @@ async function saveNuevoCliente() {
   if (nombre || cargo || mail || telefono || contraparte || notas) {
     if (!cliContacts[empresa]) cliContacts[empresa] = {};
     Object.assign(cliContacts[empresa], { nombre, cargo, mail, telefono, contraparte, notas });
-    localStorage.setItem('hk_clientes_contacts', JSON.stringify(cliContacts));
+    lsSet('hk_clientes_contacts', JSON.stringify(cliContacts));
     await dbSave('cliContacts', cliContacts);
   }
 
@@ -7894,7 +7908,7 @@ async function cliSaveSeguimiento() {
     autor: currentUser?.nombre || '?',
     ts: Date.now()
   });
-  localStorage.setItem('hk_clientes_contacts', JSON.stringify(cliContacts));
+  lsSet('hk_clientes_contacts', JSON.stringify(cliContacts));
   await dbSave('cliContacts', cliContacts);
   cliToggleSeguimientoForm();
   renderCliSeguimiento(cliCurrentEmpresa);
@@ -7904,7 +7918,7 @@ async function cliSaveSeguimiento() {
 async function cliDeleteSeguimiento(empresa, id) {
   if (!cliContacts[empresa]?.seguimiento) return;
   cliContacts[empresa].seguimiento = cliContacts[empresa].seguimiento.filter(s => s.id !== id);
-  localStorage.setItem('hk_clientes_contacts', JSON.stringify(cliContacts));
+  lsSet('hk_clientes_contacts', JSON.stringify(cliContacts));
   await dbSave('cliContacts', cliContacts);
   renderCliSeguimiento(empresa);
 }
@@ -8311,7 +8325,7 @@ function toggleSidebar() {
   if (main) main.classList.toggle('sidebar-collapsed', collapsed);
   if (btn)  btn.textContent = collapsed ? '›' : '‹';
   if (btn)  btn.title = collapsed ? 'Expandir menú' : 'Colapsar menú';
-  localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+  lsSet('sidebarCollapsed', collapsed ? '1' : '0');
 }
 
 function toggleMobSidebar() {
@@ -8551,13 +8565,13 @@ function descSaveCliente() {
     const cli = descData.find(c => c.id === _editingDescCliId);
     if (cli) {
       cli.cliente = nombre;
-      if (photo) { cli.foto = photo; localStorage.setItem('hk_cli_photo_' + nombre, photo); }
+      if (photo) { cli.foto = photo; lsSet('hk_cli_photo_' + nombre, photo); }
     }
     showToast('✓ Cliente actualizado');
   } else {
     const id = Date.now();
     const foto = photo || null;
-    if (foto) localStorage.setItem('hk_cli_photo_' + nombre, foto);
+    if (foto) lsSet('hk_cli_photo_' + nombre, foto);
     descData.push({ id, cliente:nombre, foto, cargos:[] });
     showToast('✓ Cliente creado');
   }
@@ -10092,7 +10106,7 @@ showSection = function(name) {
 
 // ─── INIT ───
 // API Key pre-configurada
-localStorage.setItem('hk_api_key','AIzaSyAqKuXI9FGaitKQRBh7v1RfdLkj2zdix34');
+lsSet('hk_api_key','AIzaSyAqKuXI9FGaitKQRBh7v1RfdLkj2zdix34');
 document.getElementById('login-pass').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 document.getElementById('login-email').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
 </script>
