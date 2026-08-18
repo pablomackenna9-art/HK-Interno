@@ -2643,6 +2643,11 @@ async function dbLoadAll() {
   renderDashboard();
   try { renderProcesos(); } catch(_) {}
   try { renderClientesList(); } catch(_) {}
+  // Re-renderizar la sección activa si tiene datos que acaban de cargarse
+  try { if (typeof renderVacaciones === 'function') renderVacaciones(); } catch(_) {}
+  try { if (typeof renderProyectos  === 'function') renderProyectos();  } catch(_) {}
+  try { if (typeof renderObjetivos  === 'function') renderObjetivos();  } catch(_) {}
+  try { if (typeof renderDesc       === 'function') renderDesc();       } catch(_) {}
 }
 async function compressPhoto(dataURL) {
   return new Promise(resolve => {
