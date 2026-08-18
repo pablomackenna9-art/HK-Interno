@@ -2616,8 +2616,8 @@ async function dbLoadAll() {
   if (pres) { presData = reattachPhotos(pres); renderPres(); }
   if (info) { informeData = info; renderInforme(); }
   if (ref)  { refData = _migrateRefData(ref); renderRef(); }
-  if (procOvr)  { lsSet('hk_proc_overrides', JSON.stringify(procOvr)); }
-  if (procCust) { lsSet('hk_proc_custom',    JSON.stringify(procCust)); }
+  if (procOvr)  { _setProcMem(procOvr, null);  lsSet('hk_proc_overrides', JSON.stringify(procOvr)); }
+  if (procCust) { _setProcMem(null, procCust); lsSet('hk_proc_custom',    JSON.stringify(procCust)); }
   if (actLog)  { activityLog  = Array.isArray(actLog)  ? actLog  : []; }
   if (factNot) { facturaNotifs = Array.isArray(factNot) ? factNot : []; }
   if (cliCont && typeof cliCont === 'object') {
@@ -6221,21 +6221,29 @@ function setProcView(mode) {
   renderProcesos();
 }
 
+let _memProcOverrides = null;
+let _memProcCustom    = null;
+function _setProcMem(ovr, cust) {
+  if (ovr  != null) _memProcOverrides = ovr;
+  if (cust != null) _memProcCustom    = cust;
+}
 function getProcData() {
-  const overrides = JSON.parse(localStorage.getItem('hk_proc_overrides')||'{}');
-  const custom    = JSON.parse(localStorage.getItem('hk_proc_custom')||'[]');
+  const overrides = _memProcOverrides ?? JSON.parse(localStorage.getItem('hk_proc_overrides')||'{}');
+  const custom    = _memProcCustom    ?? JSON.parse(localStorage.getItem('hk_proc_custom')||'[]');
   const base = PROCESOS_BASE.map(p => Object.assign({}, p, overrides[p.id]||{}));
   const cust = custom.map(p => Object.assign({}, p, overrides[p.id]||{}));
   return [...base, ...cust];
 }
 
 async function saveProcOverridesDB(overrides) {
+  _setProcMem(overrides, null);
   lsSet('hk_proc_overrides', JSON.stringify(overrides));
   lsSet('hk_local_procOverrides', JSON.stringify(overrides));
   await dbSave('procOverrides', overrides);
   _dbSaveRefresh();
 }
 async function saveProcCustomDB(custom) {
+  _setProcMem(null, custom);
   lsSet('hk_proc_custom', JSON.stringify(custom));
   lsSet('hk_local_procCustom', JSON.stringify(custom));
   await dbSave('procCustom', custom);
@@ -6265,8 +6273,8 @@ async function _refreshProcFromDB() {
   const [freshOvr, freshCust] = await Promise.all([
     dbLoad('procOverrides'), dbLoad('procCustom')
   ]);
-  if (freshOvr)  { lsSet('hk_proc_overrides', JSON.stringify(freshOvr)); }
-  if (freshCust) { lsSet('hk_proc_custom',    JSON.stringify(freshCust)); }
+  if (freshOvr)  { _setProcMem(freshOvr, null);  lsSet('hk_proc_overrides', JSON.stringify(freshOvr)); }
+  if (freshCust) { _setProcMem(null, freshCust);  lsSet('hk_proc_custom',    JSON.stringify(freshCust)); }
 }
 
 function procStatusBadge(s) {
@@ -6570,6 +6578,7 @@ async function saveProcEdit() {
       document.getElementById('mpd-empresa-title').textContent = p.empresa;
     }
     renderProcesos();
+    showToast('Proceso guardado ✓');
     if (btn) { btn.textContent = '✓ Guardado'; btn.style.background = '#22c55e'; }
   } catch(e) {
     console.error('Error guardando proceso:', e);
